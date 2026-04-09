@@ -2,11 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  /* config options here */
+  reactStrictMode: true,
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  // Exclure le dossier examples du build
+  outputFileTracingExcludes: {
+    '*': ['./examples/**', './node_modules/.cache'],
+  },
 };
 
 export default nextConfig;

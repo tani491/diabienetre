@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -12,7 +12,7 @@ model User {
   email     String   @unique
   name      String?
   password  String?
-  role      String   @default("customer") // "admin" or "customer"
+  role      String   @default("customer")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -23,7 +23,7 @@ model Product {
   description String
   price       Float
   image       String
-  category    String   // "cheveux" or "peau"
+  category    String
   stock       Int      @default(0)
   featured    Boolean  @default(false)
   active      Boolean  @default(true)
@@ -36,10 +36,10 @@ model Order {
   customerName    String
   customerPhone   String
   customerAddress String
-  items           String   // JSON string of cart items
+  items           String
   totalAmount     Float
-  waveRef         String?  // Wave transaction reference
-  status          String   @default("pending") // "pending", "confirmed", "shipped", "delivered"
+  waveRef         String?
+  status          String   @default("pending")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

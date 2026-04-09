@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email as string },
         });
 
-        if (!user || user.role !== "admin") {
+        if (!user || !user.password || user.role !== "admin") {
           return null;
         }
 
