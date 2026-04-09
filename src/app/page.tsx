@@ -1,41 +1,23 @@
-'use client';
+"use client";
 
-import { Suspense, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
-import { useAppStore, type Page } from '@/lib/store';
-import Header from '@/components/Header';
-import Hero from '@/components/Hero';
-import Categories from '@/components/Categories';
-import FeaturedProducts from '@/components/FeaturedProducts';
-import Catalog from '@/components/Catalog';
-import Cart from '@/components/Cart';
-import Checkout from '@/components/Checkout';
-import Admin from '@/components/Admin';
-import Footer from '@/components/Footer';
-import OrderConfirmation from '@/components/OrderConfirmation';
+import { Suspense, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useAppStore, type Page } from "@/lib/store";
+import Header from "@/components/Header";
+import Hero from "@/components/Hero";
+import Categories from "@/components/Categories";
+import FeaturedProducts from "@/components/FeaturedProducts";
+import Catalog from "@/components/Catalog";
+import Cart from "@/components/Cart";
+import Checkout from "@/components/Checkout";
+import Footer from "@/components/Footer";
+import OrderConfirmation from "@/components/OrderConfirmation";
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -20 },
 };
-
-function AdminRedirect() {
-  const searchParams = useSearchParams();
-  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
-  const adminRedirected = useRef(false);
-
-  useEffect(() => {
-    if (searchParams.get('admin') === 'true' && !adminRedirected.current) {
-      adminRedirected.current = true;
-      setCurrentPage('admin');
-      window.history.replaceState({}, '', '/');
-    }
-  }, [searchParams, setCurrentPage]);
-
-  return null;
-}
 
 function AppContent() {
   const hasHydrated = useAppStore((s) => s._hasHydrated);
@@ -44,23 +26,22 @@ function AppContent() {
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Reset to home if on confirmation page but no lastOrderId
   const lastOrderId = useAppStore((s) => s.lastOrderId);
   useEffect(() => {
-    if (currentPage === 'confirmation' && !lastOrderId) {
-      setCurrentPage('home');
+    if (currentPage === "confirmation" && !lastOrderId) {
+      setCurrentPage("home");
     }
   }, [currentPage, lastOrderId, setCurrentPage]);
 
   const renderPage = () => {
-    // Before hydration, always render home to avoid mismatch
-    const page = hasHydrated ? currentPage : 'home';
+    const page = hasHydrated ? currentPage : "home";
 
     switch (page) {
-      case 'home':
+      case "home":
         return (
           <motion.div key="home" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4 }}>
             <Hero onNavigate={handleNavigate} />
@@ -68,31 +49,25 @@ function AppContent() {
             <FeaturedProducts onNavigate={handleNavigate} />
           </motion.div>
         );
-      case 'catalog':
+      case "catalog":
         return (
           <motion.div key="catalog" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4 }}>
             <Catalog />
           </motion.div>
         );
-      case 'cart':
+      case "cart":
         return (
           <motion.div key="cart" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4 }}>
             <Cart onNavigate={handleNavigate} />
           </motion.div>
         );
-      case 'checkout':
+      case "checkout":
         return (
           <motion.div key="checkout" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4 }}>
             <Checkout onNavigate={handleNavigate} />
           </motion.div>
         );
-      case 'admin':
-        return (
-          <motion.div key="admin" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4 }}>
-            <Admin onNavigate={handleNavigate} />
-          </motion.div>
-        );
-      case 'confirmation':
+      case "confirmation":
         return (
           <motion.div key="confirmation" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4 }}>
             <OrderConfirmation onNavigate={handleNavigate} />
@@ -107,9 +82,7 @@ function AppContent() {
     <div className="min-h-screen flex flex-col bg-background">
       <Header onNavigate={handleNavigate} />
       <main className="flex-1">
-        <AnimatePresence mode="wait">
-          {renderPage()}
-        </AnimatePresence>
+        <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
       </main>
       <Footer />
     </div>
@@ -118,11 +91,8 @@ function AppContent() {
 
 export default function Home() {
   return (
-    <>
-      <Suspense fallback={null}>
-        <AdminRedirect />
-      </Suspense>
+    <Suspense fallback={null}>
       <AppContent />
-    </>
+    </Suspense>
   );
 }

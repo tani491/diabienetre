@@ -2,15 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { ArrowRight, Phone, Mail, MapPin, Heart, Facebook, Instagram, Twitter } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
 
 export default function Footer() {
-  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
-
-  const handleAdminAccess = () => {
-    setCurrentPage('admin');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
   return (
     <footer className="bg-sage-800 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -142,18 +135,9 @@ export default function Footer() {
             <p className="text-white/40 text-sm">
               © 2026 DiaBienEtre - Tous droits réservés
             </p>
-            <div className="flex items-center gap-4">
-              <p className="text-white/40 text-sm flex items-center gap-1">
-                Fait avec <Heart className="w-3 h-3 text-red-400 fill-red-400" /> au Sénégal
-              </p>
-              <button
-                onClick={handleAdminAccess}
-                className="text-white/20 hover:text-white/40 text-xs transition-colors cursor-pointer"
-                title="Accès Admin"
-              >
-                &#9679;
-              </button>
-            </div>
+            <p className="text-white/40 text-sm flex items-center gap-1">
+              Fait avec <Heart className="w-3 h-3 text-red-400 fill-red-400" /> au Sénégal
+            </p>
           </div>
         </div>
       </div>
