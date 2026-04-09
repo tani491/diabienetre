@@ -2,10 +2,14 @@
 
 import { motion } from 'framer-motion';
 import { ArrowRight, Phone, Mail, MapPin, Heart, Facebook, Instagram, Twitter } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
 
 export default function Footer() {
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
+
   const handleAdminAccess = () => {
-    window.location.href = '/?admin=true';
+    setCurrentPage('admin');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   return (
     <footer className="bg-sage-800 text-white">
