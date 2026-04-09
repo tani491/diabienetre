@@ -105,7 +105,7 @@ async function seed() {
     create: {
       email: 'admin@diabienetre.sn',
       name: 'Admin DiaBienEtre',
-      password: 'admin123',
+      password: '$2b$12$TzXyzFA970zzBcwdHYKKKexh4pVLlfBHPVDivleSx82Dr7kgj5Aee',
       role: 'admin',
     },
   });
