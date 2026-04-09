@@ -12,6 +12,7 @@ import Cart from "@/components/Cart";
 import Checkout from "@/components/Checkout";
 import Footer from "@/components/Footer";
 import OrderConfirmation from "@/components/OrderConfirmation";
+import WhatsAppFloat from "@/components/WhatsAppFloat";
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -85,6 +86,7 @@ function AppContent() {
         <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
       </main>
       <Footer />
+      <WhatsAppFloat />
     </div>
   );
 }
