@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth-api';
 
 export async function GET(request: Request) {
   try {
@@ -24,22 +25,30 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // Vérification admin via NextAuth (au lieu du Bearer token codé en dur)
+    const { authorized } = await requireAdmin(request as unknown as import('next/server').NextRequest);
+    if (!authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { name, description, price, image, category, stock, featured } = body;
 
-    const authHeader = request.headers.get('Authorization');
-    if (authHeader !== 'Bearer admin-diabienetre') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!name || !price || !image || !category) {
+      return NextResponse.json(
+        { error: 'Nom, prix, image et catégorie sont requis' },
+        { status: 400 }
+      );
     }
 
     const product = await db.product.create({
       data: {
-        name,
-        description,
+        name: String(name).trim(),
+        description: String(description || '').trim(),
         price: parseFloat(price),
-        image,
-        category,
-        stock: parseInt(stock),
+        image: String(image).trim(),
+        category: String(category).trim(),
+        stock: parseInt(stock) || 0,
         featured: featured || false,
         active: true,
       },

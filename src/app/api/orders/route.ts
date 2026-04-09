@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth-api';
 
 // Rate limiting simple en mémoire (par IP)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -37,7 +38,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { customerName, customerPhone, customerAddress, items, totalAmount, waveRef, paymentMethod } = body;
 
-    if (!customerName || !customerPhone || !items) {
+    // Validation complète des champs requis
+    if (!customerName || !customerPhone || !customerAddress || !items) {
       return NextResponse.json(
         { error: 'Tous les champs requis doivent être remplis' },
         { status: 400 }
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
     const sanitized = {
       customerName: String(customerName).trim().slice(0, 200),
       customerPhone: String(customerPhone).trim().slice(0, 20),
-      customerAddress: String(customerAddress || '').trim().slice(0, 500),
+      customerAddress: String(customerAddress).trim().slice(0, 500),
     };
 
     const method = paymentMethod === 'whatsapp' ? 'whatsapp' : 'wave';
@@ -74,6 +76,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validation supplémentaire: vérifier que les montants des items correspondent
+    const serverTotal = items.reduce((sum: number, item: any) => {
+      const price = parseFloat(item.price);
+      const qty = parseInt(item.quantity);
+      return sum + (isNaN(price) ? 0 : price) * (isNaN(qty) ? 0 : qty);
+    }, 0);
+
+    if (Math.abs(serverTotal - parsedTotal) > 1) {
+      return NextResponse.json(
+        { error: 'Le montant ne correspond pas au contenu du panier' },
+        { status: 400 }
+      );
+    }
+
     const order = await db.order.create({
       data: {
         customerName: sanitized.customerName,
@@ -82,6 +98,7 @@ export async function POST(request: Request) {
         items: JSON.stringify(items),
         totalAmount: parsedTotal,
         waveRef: method === 'wave' ? String(waveRef).trim().slice(0, 100) : null,
+        paymentMethod: method,
         status: method === 'whatsapp' ? 'whatsapp_pending' : 'pending',
       },
     });
@@ -95,8 +112,9 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    if (authHeader !== 'Bearer admin-diabienetre') {
+    // Vérification admin via NextAuth (au lieu du Bearer token codé en dur)
+    const { authorized } = await requireAdmin(request as unknown as import('next/server').NextRequest);
+    if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -107,5 +125,43 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Error fetching orders:', error);
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    // Vérification admin via NextAuth
+    const { authorized } = await requireAdmin(request as unknown as import('next/server').NextRequest);
+    if (!authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, status } = body;
+
+    if (!id || !status) {
+      return NextResponse.json(
+        { error: 'Order ID et statut sont requis' },
+        { status: 400 }
+      );
+    }
+
+    const validStatuses = ['pending', 'whatsapp_pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json(
+        { error: 'Statut invalide' },
+        { status: 400 }
+      );
+    }
+
+    const order = await db.order.update({
+      where: { id },
+      data: { status },
+    });
+
+    return NextResponse.json(order);
+  } catch (error) {
+    console.error('Error updating order:', error);
+    return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
   }
 }

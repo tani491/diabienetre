@@ -39,6 +39,7 @@ model Order {
   items           String
   totalAmount     Float
   waveRef         String?
+  paymentMethod   String   @default("wave")
   status          String   @default("pending")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

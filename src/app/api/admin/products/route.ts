@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth-api';
 
 export async function PUT(request: Request) {
   try {
-    const body = await request.json();
-    const { id, name, description, price, image, category, stock, featured, active } = body;
-
-    const authHeader = request.headers.get('Authorization');
-    if (authHeader !== 'Bearer admin-diabienetre') {
+    // Vérification admin via NextAuth (au lieu du Bearer token codé en dur)
+    const { authorized } = await requireAdmin(request as unknown as import('next/server').NextRequest);
+    if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const body = await request.json();
+    const { id, name, description, price, image, category, stock, featured, active } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
@@ -18,11 +20,11 @@ export async function PUT(request: Request) {
     const product = await db.product.update({
       where: { id },
       data: {
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description }),
+        ...(name !== undefined && { name: String(name).trim() }),
+        ...(description !== undefined && { description: String(description).trim() }),
         ...(price !== undefined && { price: parseFloat(price) }),
-        ...(image !== undefined && { image }),
-        ...(category !== undefined && { category }),
+        ...(image !== undefined && { image: String(image).trim() }),
+        ...(category !== undefined && { category: String(category).trim() }),
         ...(stock !== undefined && { stock: parseInt(stock) }),
         ...(featured !== undefined && { featured }),
         ...(active !== undefined && { active }),
@@ -38,16 +40,17 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    // Vérification admin via NextAuth (au lieu du Bearer token codé en dur)
+    const { authorized } = await requireAdmin(request as unknown as import('next/server').NextRequest);
+    if (!authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Product ID required' }, { status: 400 });
-    }
-
-    const authHeader = request.headers.get('Authorization');
-    if (authHeader !== 'Bearer admin-diabienetre') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Soft delete: set active=false

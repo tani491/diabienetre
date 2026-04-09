@@ -15,6 +15,7 @@ import {
   LogOut,
   User,
   ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface Product {
@@ -57,9 +65,19 @@ interface Order {
   items: string;
   totalAmount: number;
   waveRef: string | null;
+  paymentMethod: string;
   status: string;
   createdAt: string;
 }
+
+const ORDER_STATUSES = [
+  { value: "pending", label: "En attente", color: "bg-amber-100 text-amber-700" },
+  { value: "whatsapp_pending", label: "WhatsApp", color: "bg-green-100 text-green-700" },
+  { value: "confirmed", label: "Confirmée", color: "bg-blue-100 text-blue-700" },
+  { value: "shipped", label: "Expédiée", color: "bg-purple-100 text-purple-700" },
+  { value: "delivered", label: "Livrée", color: "bg-emerald-100 text-emerald-700" },
+  { value: "cancelled", label: "Annulée", color: "bg-red-100 text-red-700" },
+];
 
 export default function AdminDashboard() {
   const { data: session } = useSession();
@@ -81,6 +99,9 @@ export default function AdminDashboard() {
     featured: false,
   });
 
+  // Order detail dialog
+  const [orderDetail, setOrderDetail] = useState<Order | null>(null);
+
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/products");
@@ -93,9 +114,7 @@ export default function AdminDashboard() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch("/api/orders", {
-        headers: { Authorization: "Bearer admin-diabienetre" },
-      });
+      const res = await fetch("/api/orders");
       const data = await res.json();
       setOrders(data);
     } catch {
@@ -141,7 +160,7 @@ export default function AdminDashboard() {
 
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json", Authorization: "Bearer admin-diabienetre" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Failed");
@@ -161,7 +180,6 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`/api/admin/products?id=${id}`, {
         method: "DELETE",
-        headers: { Authorization: "Bearer admin-diabienetre" },
       });
       if (!res.ok) throw new Error("Failed");
       toast.success("Produit supprimé");
@@ -171,11 +189,36 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const res = await fetch("/api/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: orderId, status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("Statut de la commande mis à jour");
+      fetchOrders();
+    } catch {
+      toast.error("Erreur lors de la mise à jour du statut");
+    }
+  };
+
+  const getOrderItems = (itemsJson: string) => {
+    try {
+      return JSON.parse(itemsJson);
+    } catch {
+      return [];
+    }
+  };
+
   const handleLogout = () => {
     signOut({ callbackUrl: "/" });
   };
 
   if (!session) return null;
+
+  const pendingCount = orders.filter((o) => o.status === "pending" || o.status === "whatsapp_pending").length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sage-50 to-cream">
@@ -234,13 +277,13 @@ export default function AdminDashboard() {
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
           {[
             { label: "Produits", value: products.length, icon: Package, color: "text-sage-600" },
             { label: "Vedettes", value: products.filter((p) => p.featured).length, icon: Star, color: "text-gold" },
             { label: "Commandes", value: orders.length, icon: Package, color: "text-sage-600" },
-            { label: "WhatsApp", value: orders.filter((o) => o.status === "whatsapp_pending").length, icon: Package, color: "text-green-600" },
             { label: "En attente", value: orders.filter((o) => o.status === "pending").length, icon: Package, color: "text-amber-600" },
+            { label: "WhatsApp", value: orders.filter((o) => o.status === "whatsapp_pending").length, icon: Package, color: "text-green-600" },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-xl p-4 border border-sage-100/60 shadow-sm">
               <div className={`flex items-center gap-2 text-sage-500 text-xs mb-1`}>
@@ -267,8 +310,8 @@ export default function AdminDashboard() {
             className={`rounded-full ${activeTab === "orders" ? "bg-sage-500 text-white hover:bg-sage-600 hover:text-white" : "text-sage-600 hover:bg-sage-50"}`}
           >
             Commandes
-            {(orders.filter((o) => o.status === "pending").length + orders.filter((o) => o.status === "whatsapp_pending").length) > 0 && (
-              <Badge className="ml-2 bg-gold text-white h-5 px-1.5 text-xs">{orders.filter((o) => o.status === "pending").length + orders.filter((o) => o.status === "whatsapp_pending").length}</Badge>
+            {pendingCount > 0 && (
+              <Badge className="ml-2 bg-gold text-white h-5 px-1.5 text-xs">{pendingCount}</Badge>
             )}
           </Button>
         </div>
@@ -331,36 +374,54 @@ export default function AdminDashboard() {
                     <TableHead className="text-sage-600 font-semibold">Client</TableHead>
                     <TableHead className="text-sage-600 font-semibold hidden sm:table-cell">Téléphone</TableHead>
                     <TableHead className="text-sage-600 font-semibold">Montant</TableHead>
-                    <TableHead className="text-sage-600 font-semibold hidden md:table-cell">Wave Ref</TableHead>
+                    <TableHead className="text-sage-600 font-semibold hidden md:table-cell">Paiement</TableHead>
                     <TableHead className="text-sage-600 font-semibold">Statut</TableHead>
                     <TableHead className="text-sage-600 font-semibold hidden lg:table-cell">Date</TableHead>
+                    <TableHead className="text-sage-600 font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {orders.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-12 text-sage-400">Aucune commande</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-12 text-sage-400">Aucune commande</TableCell></TableRow>
                   ) : (
                     orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium text-sage-800 text-sm">{order.customerName}</TableCell>
                         <TableCell className="hidden sm:table-cell text-sage-600 text-sm">{order.customerPhone}</TableCell>
                         <TableCell className="text-sage-700 font-medium text-sm">{order.totalAmount.toLocaleString("fr-FR")} CFA</TableCell>
-                        <TableCell className="hidden md:table-cell text-sage-600 text-sm font-mono">{order.waveRef || "-"}</TableCell>
-                        <TableCell>
-                          <Badge className={`text-xs ${
-                            order.status === "pending" ? "bg-amber-100 text-amber-700" :
-                            order.status === "whatsapp_pending" ? "bg-green-100 text-green-700" :
-                            order.status === "confirmed" ? "bg-blue-100 text-blue-700" :
-                            order.status === "shipped" ? "bg-purple-100 text-purple-700" :
-                            "bg-sage-100 text-sage-700"
-                          }`}>
-                            {order.status === "pending" ? "En attente" :
-                             order.status === "whatsapp_pending" ? "WhatsApp" :
-                             order.status === "confirmed" ? "Confirmée" :
-                             order.status === "shipped" ? "Expédiée" : "Livrée"}
+                        <TableCell className="hidden md:table-cell">
+                          <Badge variant="outline" className={`text-xs ${order.paymentMethod === 'whatsapp' ? 'border-green-300 text-green-700' : 'border-blue-300 text-blue-700'}`}>
+                            {order.paymentMethod === 'whatsapp' ? 'WhatsApp' : 'Wave'}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          <Select
+                            value={order.status}
+                            onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
+                          >
+                            <SelectTrigger className="w-[130px] h-7 text-xs border-0">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ORDER_STATUSES.map((s) => (
+                                <SelectItem key={s.value} value={s.value}>
+                                  {s.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell className="hidden lg:table-cell text-sage-500 text-xs">{new Date(order.createdAt).toLocaleDateString("fr-FR")}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setOrderDetail(order)}
+                            className="text-sage-400 hover:text-sage-600 hover:bg-sage-50 h-8 w-8"
+                          >
+                            <Package className="w-3.5 h-3.5" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -422,6 +483,91 @@ export default function AdminDashboard() {
               {editingProduct ? "Mettre à jour" : "Créer"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Order Detail Dialog */}
+      <Dialog open={!!orderDetail} onOpenChange={() => setOrderDetail(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <DialogHeader>
+            <DialogTitle className="text-sage-800">Détails de la commande</DialogTitle>
+          </DialogHeader>
+          {orderDetail && (
+            <div className="space-y-4 mt-4">
+              {/* Client Info */}
+              <div className="bg-sage-50 rounded-xl p-4 space-y-2">
+                <h3 className="font-semibold text-sage-800 text-sm">Informations client</h3>
+                <div className="text-sm text-sage-600 space-y-1">
+                  <p><span className="font-medium">Nom:</span> {orderDetail.customerName}</p>
+                  <p><span className="font-medium">Téléphone:</span> {orderDetail.customerPhone}</p>
+                  <p><span className="font-medium">Adresse:</span> {orderDetail.customerAddress}</p>
+                </div>
+              </div>
+
+              {/* Payment Info */}
+              <div className="bg-blue-50 rounded-xl p-4 space-y-2">
+                <h3 className="font-semibold text-sage-800 text-sm">Paiement</h3>
+                <div className="text-sm text-sage-600 space-y-1">
+                  <p><span className="font-medium">Mode:</span> {orderDetail.paymentMethod === 'whatsapp' ? 'WhatsApp' : 'Wave'}</p>
+                  {orderDetail.waveRef && (
+                    <p><span className="font-medium">Référence Wave:</span> <span className="font-mono">{orderDetail.waveRef}</span></p>
+                  )}
+                  <p><span className="font-medium">Montant:</span> <span className="font-bold text-sage-800">{orderDetail.totalAmount.toLocaleString("fr-FR")} CFA</span></p>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sage-800 text-sm">Changer le statut</h3>
+                <Select
+                  value={orderDetail.status}
+                  onValueChange={(value) => {
+                    handleUpdateOrderStatus(orderDetail.id, value);
+                    setOrderDetail({ ...orderDetail, status: value });
+                  }}
+                >
+                  <SelectTrigger className="border-sage-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORDER_STATUSES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Items */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sage-800 text-sm">Articles commandés</h3>
+                <div className="space-y-2">
+                  {getOrderItems(orderDetail.items).map((item: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between bg-white rounded-lg p-3 border border-sage-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-sage-50 shrink-0">
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sage-800 text-sm">{item.name}</p>
+                          <p className="text-xs text-sage-400">Qté: {item.quantity}</p>
+                        </div>
+                      </div>
+                      <span className="font-semibold text-sage-800 text-sm">
+                        {(item.price * item.quantity).toLocaleString("fr-FR")} CFA
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date */}
+              <p className="text-xs text-sage-400">
+                Commande passée le {new Date(orderDetail.createdAt).toLocaleString("fr-FR")}
+              </p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

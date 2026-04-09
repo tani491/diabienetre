@@ -24,3 +24,41 @@ Stage Summary:
 - Wave utilise la référence de transaction existante
 - README complet à la racine: /home/z/my-project/README_DiaBienEtre.md
 - Build Next.js réussi sans erreurs
+
+---
+Task ID: 2
+Agent: Super Z (main)
+Task: Audit complet de production readiness + correction de toutes les failles
+
+Work Log:
+- Lu TOUS les fichiers du projet (40+ fichiers) pour audit complet
+- Identifié 6 failles critiques et 4 améliorations nécessaires
+- CRITIQUE #1: Remplacé le Bearer token codé en dur (`Bearer admin-diabienetre`) par vérification NextAuth session dans toutes les API routes (auth-api.ts)
+- CRITIQUE #2: Ajouté la validation de `customerAddress` côté serveur dans l'API orders
+- CRITIQUE #3: Ajouté la vérification côté serveur que le montant correspond au contenu du panier (anti-fraude)
+- CRITIQUE #4: Créé le fichier `.env.example` avec toutes les variables requises (DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, ADMIN_EMAIL)
+- CRITIQUE #5: Ajouté le champ `paymentMethod` au schéma Prisma Order + endpoint PUT /api/orders pour changer le statut
+- CRITIQUE #6: Ajouté la gestion complète des statuts de commande dans le dashboard admin (Select dropdown + dialog de détails)
+- AMÉLIORATION: Mis à jour robots.txt pour bloquer /admin/* des moteurs de recherche
+- AMÉLIORATION: Retiré l'email admin pré-rempli du formulaire de login
+- AMÉLIORATION: Supprimé le fichier SQLite inutile db/custom.db
+- AMÉLIORATION: Nettoyé les headers Authorization codés en dur dans le dashboard admin (NextAuth envoie le cookie automatiquement)
+- Build réussi (8 pages, 4 API routes, 1 middleware)
+
+Stage Summary:
+- Toutes les failles critiques corrigées
+- API routes sécurisées avec NextAuth sessions (plus de tokens codés en dur)
+- Dashboard admin avec gestion complète des statuts de commandes (pending, whatsapp_pending, confirmed, shipped, delivered, cancelled)
+- Fichier .env.example prêt pour le déploiement
+- Schéma Prisma mis à jour avec paymentMethod
+- Build Next.js réussi sans erreurs
+- Fichiers modifiés:
+  - /src/lib/auth-api.ts (NOUVEAU)
+  - /src/app/api/orders/route.ts (sécurisé + endpoint PUT statut)
+  - /src/app/api/products/route.ts (sécurisé)
+  - /src/app/api/admin/products/route.ts (sécurisé)
+  - /prisma/schema.prisma (ajout paymentMethod)
+  - /src/app/admin/AdminDashboard.tsx (gestion statuts + détails commande)
+  - /src/app/admin/login/AdminLoginPage.tsx (email non pré-rempli)
+  - /public/robots.txt (bloque /admin/)
+  - /.env.example (NOUVEAU)
