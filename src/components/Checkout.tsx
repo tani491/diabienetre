@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User,
@@ -167,8 +167,13 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
     }
   };
 
+  useEffect(() => {
+    if (cart.length === 0) {
+      onNavigate('cart');
+    }
+  }, [cart.length, onNavigate]);
+
   if (cart.length === 0) {
-    onNavigate('cart');
     return null;
   }
 
