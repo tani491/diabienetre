@@ -22,6 +22,7 @@ export default function Header({ onNavigate }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const currentPage = useAppStore((s) => s.currentPage);
   const cartCount = useAppStore((s) => s.cartCount);
+  const hasHydrated = useAppStore((s) => s._hasHydrated);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -98,7 +99,7 @@ export default function Header({ onNavigate }: HeaderProps) {
               className="relative text-white hover:bg-white/15 hover:text-white"
             >
               <ShoppingBag className="w-5 h-5" />
-              {cartCount() > 0 && (
+              {hasHydrated && cartCount() > 0 && (
                 <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-gold text-white text-xs font-bold border-2 border-sage-400">
                   {cartCount()}
                 </Badge>
@@ -158,7 +159,7 @@ export default function Header({ onNavigate }: HeaderProps) {
                   >
                     <ShoppingBag className="w-4 h-4" />
                     Panier
-                    {cartCount() > 0 && (
+                    {hasHydrated && cartCount() > 0 && (
                       <Badge className="ml-auto bg-gold text-white">{cartCount()}</Badge>
                     )}
                   </button>

@@ -14,6 +14,10 @@ export interface CartItem {
 }
 
 interface AppState {
+  // Hydration
+  _hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
+
   // Navigation
   currentPage: Page;
   setCurrentPage: (page: Page) => void;
@@ -39,6 +43,10 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      // Hydration
+      _hasHydrated: false,
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
+
       // Navigation
       currentPage: 'home',
       setCurrentPage: (page) => set({ currentPage: page }),
@@ -95,6 +103,9 @@ export const useAppStore = create<AppState>()(
         cart: state.cart,
         selectedCategory: state.selectedCategory,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

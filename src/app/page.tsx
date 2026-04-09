@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore, type Page } from '@/lib/store';
@@ -21,18 +21,11 @@ const pageVariants = {
   exit: { opacity: 0, y: -20 },
 };
 
-export default function Home() {
-  const currentPage = useAppStore((s) => s.currentPage);
-  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
-
-  const handleNavigate = (page: Page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Secret admin access via ?admin=true
+function AdminRedirect() {
   const searchParams = useSearchParams();
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
   const adminRedirected = useRef(false);
+
   useEffect(() => {
     if (searchParams.get('admin') === 'true' && !adminRedirected.current) {
       adminRedirected.current = true;
@@ -40,6 +33,19 @@ export default function Home() {
       window.history.replaceState({}, '', '/');
     }
   }, [searchParams, setCurrentPage]);
+
+  return null;
+}
+
+function AppContent() {
+  const hasHydrated = useAppStore((s) => s._hasHydrated);
+  const currentPage = useAppStore((s) => s.currentPage);
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
+
+  const handleNavigate = (page: Page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Reset to home if on confirmation page but no lastOrderId
   const lastOrderId = useAppStore((s) => s.lastOrderId);
@@ -50,7 +56,10 @@ export default function Home() {
   }, [currentPage, lastOrderId, setCurrentPage]);
 
   const renderPage = () => {
-    switch (currentPage) {
+    // Before hydration, always render home to avoid mismatch
+    const page = hasHydrated ? currentPage : 'home';
+
+    switch (page) {
       case 'home':
         return (
           <motion.div key="home" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4 }}>
@@ -104,5 +113,16 @@ export default function Home() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <>
+      <Suspense fallback={null}>
+        <AdminRedirect />
+      </Suspense>
+      <AppContent />
+    </>
   );
 }
