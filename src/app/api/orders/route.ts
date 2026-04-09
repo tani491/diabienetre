@@ -112,8 +112,8 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    // Vérification admin via NextAuth (au lieu du Bearer token codé en dur)
-    const { authorized } = await requireAdmin(request as unknown as import('next/server').NextRequest);
+    // Vérification admin via session NextAuth
+    const { authorized } = await requireAdmin();
     if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -131,7 +131,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     // Vérification admin via NextAuth
-    const { authorized } = await requireAdmin(request as unknown as import('next/server').NextRequest);
+    const { authorized } = await requireAdmin();
     if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

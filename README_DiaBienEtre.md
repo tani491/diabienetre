@@ -365,7 +365,7 @@ npm run start
 
 | Variable | Description | Exemple |
 |---|---|---|
-| `DATABASE_URL` | URL de connexion à la base de données | `file:./db/custom.db` |
+| `DATABASE_URL` | URL de connexion PostgreSQL (Supabase) | `postgresql://postgres:[MOT_DE_PASSE]@db.[PROJET].supabase.co:5432/postgres` |
 | `NEXTAUTH_SECRET` | Clé secrète pour les sessions JWT | Une chaîne aléatoire sécurisée |
 | `NEXTAUTH_URL` | URL de base de l'application | `http://localhost:3000` |
 | `ADMIN_EMAIL` | Email de l'administrateur autorisé | `admin@diabienetre.sn` |
@@ -398,12 +398,13 @@ npm run start
 | **Email** | `contact@diabienetre.sn` |
 | **Localisation** | Dakar, Sénégal |
 
-### API Admin Token
+### Sécurité API
 
 | Information | Valeur |
 |---|---|
-| **Authorization Header** | `Bearer admin-diabienetre` |
-| **Utilisation** | Routes `/api/orders` (GET) et `/api/admin/products` (CRUD) |
+| **Authentification** | Session NextAuth (JWT cookie) |
+| **Protection** | Vérification rôle admin + email sur toutes les routes API |
+| **Anti-fraude** | Vérification serveur du montant total vs contenu du panier |
 
 ---
 
@@ -422,9 +423,10 @@ npm run start
 - Le client est informé qu'il peut payer à la livraison
 
 ### Base de Données
-- SQLite est utilisé pour le développement (base fichier dans `db/custom.db`)
-- Pour la production, il est recommandé de migrer vers PostgreSQL en modifiant le provider dans `schema.prisma`
-- Le script de seed peut être relancé avec `npm run db:seed` (les données existantes sont supprimées)
+- PostgreSQL (Supabase) en production
+- Le schéma est défini dans `prisma/schema.prisma` (models: User, Product, Order)
+- Le script de seed crée l'admin et les 8 produits
+- L'Order inclut un champ `paymentMethod` ('wave' ou 'whatsapp')
 
 ### Navigation SPA
 - L'application utilise un pattern SPA avec Zustand pour la navigation client-side
