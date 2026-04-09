@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import AdminLoginPage from "./AdminLoginPage";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function AdminLogin() {
-  return <AdminLoginPage />;
+  return (
+    <Suspense fallback={null}>
+      <AdminLoginPage />
+    </Suspense>
+  );
 }

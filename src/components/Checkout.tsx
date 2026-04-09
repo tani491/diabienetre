@@ -11,6 +11,9 @@ import {
   Check,
   CreditCard,
   Loader2,
+  MessageCircle,
+  Send,
+  Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,13 +31,18 @@ const steps = [
   { id: 3, label: 'Paiement', icon: CreditCard },
 ];
 
+const WAVE_NUMBER = '775278596';
+const WHATSAPP_NUMBER = '221775278596';
+
 export default function Checkout({ onNavigate }: CheckoutPageProps) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<'wave' | 'whatsapp' | null>(null);
   const cart = useAppStore((s) => s.cart);
   const cartTotal = useAppStore((s) => s.cartTotal);
   const clearCart = useAppStore((s) => s.clearCart);
   const setLastOrderId = useAppStore((s) => s.setLastOrderId);
+  const setLastPaymentMethod = useAppStore((s) => s.setLastPaymentMethod);
 
   const [form, setForm] = useState({
     name: '',
@@ -62,7 +70,65 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
     }
   };
 
-  const handleSubmit = async () => {
+  const buildWhatsAppMessage = () => {
+    const itemsList = cart
+      .map(
+        (item, i) =>
+          `${i + 1}. ${item.name}\n   Quantité: ${item.quantity} × ${item.price.toLocaleString('fr-FR')} CFA = ${(item.price * item.quantity).toLocaleString('fr-FR')} CFA`
+      )
+      .join('\n');
+
+    const message = `🛍️ *Nouvelle Commande - DiaBienEtre*\n\n` +
+      `👤 *Client:* ${form.name}\n` +
+      `📱 *Téléphone:* ${form.phone}\n` +
+      `📍 *Adresse:* ${form.address}\n\n` +
+      `📋 *Détail de la commande:*\n${itemsList}\n\n` +
+      `💰 *Total:* ${cartTotal().toLocaleString('fr-FR')} CFA\n\n` +
+      `Merci de confirmer la disponibilité et les modalités de livraison ! 🙏`;
+
+    return encodeURIComponent(message);
+  };
+
+  const handleWhatsAppOrder = async () => {
+    setLoading(true);
+    try {
+      // Save order to DB with whatsapp payment method
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: form.name,
+          customerPhone: form.phone,
+          customerAddress: form.address,
+          items: cart,
+          totalAmount: cartTotal(),
+          paymentMethod: 'whatsapp',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Order failed');
+      }
+
+      const order = await response.json();
+      setLastOrderId(order.id);
+      setLastPaymentMethod('whatsapp');
+      clearCart();
+
+      // Redirect to WhatsApp
+      const message = buildWhatsAppMessage();
+      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+
+      toast.success('Commande envoyée via WhatsApp !');
+      onNavigate('confirmation');
+    } catch {
+      toast.error('Erreur lors de la commande. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWaveOrder = async () => {
     if (!form.waveRef.trim()) {
       setErrors({ waveRef: 'La référence Wave est requise' });
       return;
@@ -80,6 +146,7 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
           items: cart,
           totalAmount: cartTotal(),
           waveRef: form.waveRef,
+          paymentMethod: 'wave',
         }),
       });
 
@@ -89,6 +156,7 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
 
       const order = await response.json();
       setLastOrderId(order.id);
+      setLastPaymentMethod('wave');
       clearCart();
       toast.success('Commande confirmée !');
       onNavigate('confirmation');
@@ -318,9 +386,79 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
               </div>
             )}
 
-            {/* Step 3: Wave Payment */}
-            {step === 3 && (
+            {/* Step 3: Payment Method Choice */}
+            {step === 3 && !selectedPayment && (
               <div>
+                <h2 className="text-xl font-bold text-sage-800 mb-2">
+                  Choisissez votre mode de paiement
+                </h2>
+                <p className="text-sage-500 text-sm mb-8">
+                  Sélectionnez la méthode qui vous convient le mieux pour finaliser votre commande
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* WhatsApp Option */}
+                  <button
+                    onClick={() => setSelectedPayment('whatsapp')}
+                    className="group relative border-2 border-green-200 hover:border-green-400 rounded-2xl p-6 text-left transition-all duration-300 hover:shadow-lg cursor-pointer bg-gradient-to-br from-green-50 to-white"
+                  >
+                    <div className="flex flex-col items-center text-center gap-4">
+                      <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
+                        <MessageCircle className="w-8 h-8 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-green-700 mb-1">
+                          Commander via WhatsApp
+                        </h3>
+                        <p className="text-sm text-green-600/70 leading-relaxed">
+                          Envoyez votre commande directement sur WhatsApp. Nous vous répondrons pour confirmer la disponibilité et organiser la livraison.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-green-600 text-sm font-medium mt-1">
+                        <Send className="w-4 h-4" />
+                        Envoyer la commande
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Wave Option */}
+                  <button
+                    onClick={() => setSelectedPayment('wave')}
+                    className="group relative border-2 border-blue-200 hover:border-blue-400 rounded-2xl p-6 text-left transition-all duration-300 hover:shadow-lg cursor-pointer bg-gradient-to-br from-blue-50 to-white"
+                  >
+                    <div className="flex flex-col items-center text-center gap-4">
+                      <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
+                        <Wallet className="w-8 h-8 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-blue-700 mb-1">
+                          Payer via Wave
+                        </h3>
+                        <p className="text-sm text-blue-600/70 leading-relaxed">
+                          Effectuez votre paiement directement par Wave et entrez la référence de transaction pour confirmer.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-blue-600 text-sm font-medium mt-1">
+                        <CreditCard className="w-4 h-4" />
+                        Payer maintenant
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Wave Payment Form */}
+            {step === 3 && selectedPayment === 'wave' && (
+              <div>
+                <button
+                  onClick={() => setSelectedPayment(null)}
+                  className="flex items-center gap-1 text-sm text-sage-500 hover:text-sage-700 mb-6 transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Retour aux modes de paiement
+                </button>
+
                 <h2 className="text-xl font-bold text-sage-800 mb-2">
                   Paiement via Wave
                 </h2>
@@ -328,12 +466,12 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
                   Effectuez votre paiement en envoyant le montant au numéro ci-dessous
                 </p>
 
-                <div className="bg-gradient-to-br from-sage-400 to-sage-600 rounded-2xl p-6 text-white mb-6">
+                <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 text-white mb-6">
                   <p className="text-sm text-white/80 mb-1">
                     Envoyez le montant à
                   </p>
-                  <p className="text-3xl font-bold tracking-wide mb-1">775278596</p>
-                  <p className="text-lg font-semibold text-gold">
+                  <p className="text-3xl font-bold tracking-wide mb-1">{WAVE_NUMBER}</p>
+                  <p className="text-lg font-semibold text-yellow-300">
                     {totalAmount.toLocaleString('fr-FR')} CFA
                   </p>
                 </div>
@@ -364,32 +502,121 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
                     </p>
                   </div>
                 </div>
+
+                {/* Confirm Wave Button */}
+                <div className="flex justify-end mt-8 pt-6 border-t border-sage-100">
+                  <Button
+                    onClick={handleWaveOrder}
+                    disabled={loading}
+                    className="rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Traitement...
+                      </>
+                    ) : (
+                      <>
+                        Confirmer le paiement Wave
+                        <Check className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-8 pt-6 border-t border-sage-100">
-              {step > 1 ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(step - 1)}
-                  className="rounded-full border-sage-200 text-sage-600 hover:bg-sage-50"
+            {/* Step 3: WhatsApp Confirmation */}
+            {step === 3 && selectedPayment === 'whatsapp' && (
+              <div>
+                <button
+                  onClick={() => setSelectedPayment(null)}
+                  className="flex items-center gap-1 text-sm text-sage-500 hover:text-sage-700 mb-6 transition-colors cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Retour
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => onNavigate('cart')}
-                  className="rounded-full border-sage-200 text-sage-600 hover:bg-sage-50"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Panier
-                </Button>
-              )}
+                  <ArrowLeft className="w-4 h-4" />
+                  Retour aux modes de paiement
+                </button>
 
-              {step < 3 ? (
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <MessageCircle className="w-10 h-10 text-green-500" />
+                  </div>
+                  <h2 className="text-xl font-bold text-sage-800 mb-2">
+                    Commander via WhatsApp
+                  </h2>
+                  <p className="text-sage-500 text-sm mb-6 max-w-md mx-auto">
+                    Votre commande sera envoyée sur WhatsApp avec tous les détails. Nous vous répondrons rapidement pour confirmer la disponibilité et organiser la livraison.
+                  </p>
+
+                  <div className="bg-green-50 rounded-xl p-4 mb-8 text-left max-w-sm mx-auto">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                        <Phone className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-sage-800">Numéro WhatsApp</p>
+                        <p className="text-lg font-bold text-green-600">{WAVE_NUMBER}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-sage-500">
+                      Un message pré-rempli avec les détails de votre commande sera envoyé automatiquement.
+                    </p>
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 text-left max-w-sm mx-auto">
+                    <p className="text-sm text-amber-800 font-medium mb-1">💡 Paiement à la livraison</p>
+                    <p className="text-xs text-amber-700">
+                      Vous pouvez régler en espèces ou par Wave au moment de la livraison. Notre équipe vous contactera pour les détails.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Confirm WhatsApp Button */}
+                <div className="flex justify-end mt-4 pt-6 border-t border-sage-100">
+                  <Button
+                    onClick={handleWhatsAppOrder}
+                    disabled={loading}
+                    className="rounded-full bg-green-500 hover:bg-green-600 text-white font-semibold"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Envoi en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Envoyer sur WhatsApp
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons (for steps 1 and 2, and step 3 without selection) */}
+            {step < 3 && (
+              <div className="flex justify-between mt-8 pt-6 border-t border-sage-100">
+                {step > 1 ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => setStep(step - 1)}
+                    className="rounded-full border-sage-200 text-sage-600 hover:bg-sage-50"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Retour
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => onNavigate('cart')}
+                    className="rounded-full border-sage-200 text-sage-600 hover:bg-sage-50"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Panier
+                  </Button>
+                )}
+
                 <Button
                   onClick={handleNext}
                   className="rounded-full bg-sage-400 hover:bg-sage-500 text-white"
@@ -397,26 +624,22 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
                   Continuer
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
-              ) : (
+              </div>
+            )}
+
+            {/* Back button for step 2 when going back */}
+            {step === 3 && !selectedPayment && (
+              <div className="flex justify-between mt-8 pt-6 border-t border-sage-100">
                 <Button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="rounded-full bg-gold hover:bg-gold/90 text-white font-semibold"
+                  variant="outline"
+                  onClick={() => setStep(2)}
+                  className="rounded-full border-sage-200 text-sage-600 hover:bg-sage-50"
                 >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Traitement...
-                    </>
-                  ) : (
-                    <>
-                      Confirmer le paiement
-                      <Check className="w-4 h-4 ml-2" />
-                    </>
-                  )}
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

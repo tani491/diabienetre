@@ -1,24 +1,26 @@
 ---
 Task ID: 1
-Agent: Main Agent
-Task: Build DiaBienEtre E-commerce SPA
+Agent: Super Z (main)
+Task: Refondre le processus de commande en 3 étapes (WhatsApp + Wave) + README complet
 
 Work Log:
-- Initialized fullstack dev environment
-- Verified Prisma schema (User, Product, Order models) and pushed to SQLite database
-- Generated 9 AI images: hero banner, brand logo, 4 hair products, 4 skin products
-- Built complete SPA with Zustand state management and localStorage persistence
-- Created wellness color theme (sage green, gold, cream) in globals.css
-- Built 11 components: Header, Hero, Categories, FeaturedProducts, ProductCard, Catalog, Cart, Checkout, Admin, Footer, OrderConfirmation
-- Created API routes: GET/POST /api/products, POST/GET /api/orders, PUT/DELETE /api/admin/products
-- Seeded database with 8 products (4 cheveux, 4 peau) with French descriptions
-- Ran ESLint: 0 errors
-- Verified dev server: all pages compiling and rendering successfully
+- Lu tous les fichiers clés du projet (store, checkout, API, admin, layout, etc.)
+- Mis à jour le store Zustand avec `lastPaymentMethod` et `setLastPaymentMethod`
+- Réécrit entièrement Checkout.tsx avec 3 étapes :
+  - Étape 1: Informations client (nom, téléphone, adresse)
+  - Étape 2: Récapitulatif commande (articles, total, coordonnées)
+  - Étape 3: 2 choix - WhatsApp (redirection wa.me avec message pré-rempli) OU Wave (référence transaction)
+- Mis à jour l'API /api/orders pour supporter `paymentMethod` ('wave' ou 'whatsapp')
+- Statut 'whatsapp_pending' pour les commandes WhatsApp, 'pending' pour Wave
+- Mis à jour OrderConfirmation.tsx pour afficher le mode de paiement utilisé
+- Mis à jour AdminDashboard.tsx pour afficher les statuts WhatsApp et le compteur
+- Corrigé le build (Suspense boundary manquant sur /admin/login)
+- Créé le README_DiaBienEtre.md complet avec toutes les sections
+- Build réussi (10/10 pages)
 
 Stage Summary:
-- Complete DiaBienEtre e-commerce SPA is live and running
-- 8 products seeded in SQLite database with prices in CFA
-- Wave payment integration at checkout (number: 775278596)
-- Admin panel with password protection (admin2024)
-- Responsive mobile-first design with framer-motion animations
-- Cart persists in localStorage via Zustand
+- Processus de commande en 3 étapes fonctionnel avec 2 modes de paiement
+- WhatsApp redirige vers wa.me/221775278596 avec message structuré
+- Wave utilise la référence de transaction existante
+- README complet à la racine: /home/z/my-project/README_DiaBienEtre.md
+- Build Next.js réussi sans erreurs

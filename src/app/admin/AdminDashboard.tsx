@@ -239,6 +239,7 @@ export default function AdminDashboard() {
             { label: "Produits", value: products.length, icon: Package, color: "text-sage-600" },
             { label: "Vedettes", value: products.filter((p) => p.featured).length, icon: Star, color: "text-gold" },
             { label: "Commandes", value: orders.length, icon: Package, color: "text-sage-600" },
+            { label: "WhatsApp", value: orders.filter((o) => o.status === "whatsapp_pending").length, icon: Package, color: "text-green-600" },
             { label: "En attente", value: orders.filter((o) => o.status === "pending").length, icon: Package, color: "text-amber-600" },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-xl p-4 border border-sage-100/60 shadow-sm">
@@ -266,8 +267,8 @@ export default function AdminDashboard() {
             className={`rounded-full ${activeTab === "orders" ? "bg-sage-500 text-white hover:bg-sage-600 hover:text-white" : "text-sage-600 hover:bg-sage-50"}`}
           >
             Commandes
-            {orders.filter((o) => o.status === "pending").length > 0 && (
-              <Badge className="ml-2 bg-gold text-white h-5 px-1.5 text-xs">{orders.filter((o) => o.status === "pending").length}</Badge>
+            {(orders.filter((o) => o.status === "pending").length + orders.filter((o) => o.status === "whatsapp_pending").length) > 0 && (
+              <Badge className="ml-2 bg-gold text-white h-5 px-1.5 text-xs">{orders.filter((o) => o.status === "pending").length + orders.filter((o) => o.status === "whatsapp_pending").length}</Badge>
             )}
           </Button>
         </div>
@@ -346,8 +347,17 @@ export default function AdminDashboard() {
                         <TableCell className="text-sage-700 font-medium text-sm">{order.totalAmount.toLocaleString("fr-FR")} CFA</TableCell>
                         <TableCell className="hidden md:table-cell text-sage-600 text-sm font-mono">{order.waveRef || "-"}</TableCell>
                         <TableCell>
-                          <Badge className={`text-xs ${order.status === "pending" ? "bg-amber-100 text-amber-700" : order.status === "confirmed" ? "bg-green-100 text-green-700" : "bg-sage-100 text-sage-700"}`}>
-                            {order.status === "pending" ? "En attente" : order.status === "confirmed" ? "Confirmée" : order.status === "shipped" ? "Expédiée" : "Livrée"}
+                          <Badge className={`text-xs ${
+                            order.status === "pending" ? "bg-amber-100 text-amber-700" :
+                            order.status === "whatsapp_pending" ? "bg-green-100 text-green-700" :
+                            order.status === "confirmed" ? "bg-blue-100 text-blue-700" :
+                            order.status === "shipped" ? "bg-purple-100 text-purple-700" :
+                            "bg-sage-100 text-sage-700"
+                          }`}>
+                            {order.status === "pending" ? "En attente" :
+                             order.status === "whatsapp_pending" ? "WhatsApp" :
+                             order.status === "confirmed" ? "Confirmée" :
+                             order.status === "shipped" ? "Expédiée" : "Livrée"}
                           </Badge>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell text-sage-500 text-xs">{new Date(order.createdAt).toLocaleDateString("fr-FR")}</TableCell>

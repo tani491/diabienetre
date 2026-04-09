@@ -38,6 +38,8 @@ interface AppState {
   // Order confirmation
   lastOrderId: string | null;
   setLastOrderId: (id: string | null) => void;
+  lastPaymentMethod: 'wave' | 'whatsapp' | null;
+  setLastPaymentMethod: (method: 'wave' | 'whatsapp' | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -96,6 +98,8 @@ export const useAppStore = create<AppState>()(
       // Order confirmation
       lastOrderId: null,
       setLastOrderId: (id) => set({ lastOrderId: id }),
+      lastPaymentMethod: null,
+      setLastPaymentMethod: (method) => set({ lastPaymentMethod: method }),
     }),
     {
       name: 'diabienetre-storage',

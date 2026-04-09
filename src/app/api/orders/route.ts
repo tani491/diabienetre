@@ -4,11 +4,20 @@ import { db } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { customerName, customerPhone, customerAddress, items, totalAmount, waveRef } = body;
+    const { customerName, customerPhone, customerAddress, items, totalAmount, waveRef, paymentMethod } = body;
 
-    if (!customerName || !customerPhone || !items || !waveRef) {
+    if (!customerName || !customerPhone || !items) {
       return NextResponse.json(
-        { error: 'Tous les champs sont requis' },
+        { error: 'Tous les champs requis doivent être remplis' },
+        { status: 400 }
+      );
+    }
+
+    // Validate waveRef for wave payments
+    const method = paymentMethod || 'wave';
+    if (method === 'wave' && !waveRef) {
+      return NextResponse.json(
+        { error: 'La référence Wave est requise pour le paiement via Wave' },
         { status: 400 }
       );
     }
@@ -20,8 +29,8 @@ export async function POST(request: Request) {
         customerAddress: customerAddress || '',
         items: JSON.stringify(items),
         totalAmount: parseFloat(totalAmount),
-        waveRef,
-        status: 'pending',
+        waveRef: waveRef || null,
+        status: method === 'whatsapp' ? 'whatsapp_pending' : 'pending',
       },
     });
 
