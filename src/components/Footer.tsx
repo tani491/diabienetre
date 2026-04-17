@@ -137,6 +137,7 @@ export default function Footer() {
             </p>
             <p className="text-white/40 text-sm flex items-center gap-1">
               Fait avec <Heart className="w-3 h-3 text-red-400 fill-red-400" /> au Sénégal
+              <a href="/admin" className="text-white/40 hover:text-white text-xs ml-1">●</a>
             </p>
           </div>
         </div>

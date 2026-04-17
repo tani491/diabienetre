@@ -2,10 +2,23 @@
 
 set -euo pipefail
 
-# 获取脚本所在目录（.zscripts）
-# 使用 $0 获取脚本路径（与 build.sh 保持一致）
+# Récupérer le répertoire du script (.zscripts)
+# Utiliser $0 pour récupérer le chemin du script (comme dans build.sh)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+resolve_database_url() {
+	if [ -n "${DATABASE_URL:-}" ]; then
+		printf '%s' "$DATABASE_URL"
+		return 0
+	fi
+
+	if [ ! -f "$PROJECT_DIR/.env" ]; then
+		return 1
+	fi
+
+	grep '^DATABASE_URL=' "$PROJECT_DIR/.env" | head -n 1 | cut -d= -f2-
+}
 
 log_step_start() {
 	local step_name="$1"
@@ -117,6 +130,19 @@ cd "$PROJECT_DIR"
 
 if ! command -v bun >/dev/null 2>&1; then
 	echo "ERROR: bun is not installed or not in PATH"
+	exit 1
+fi
+
+DATABASE_URL_VALUE="$(resolve_database_url || true)"
+if [ -z "$DATABASE_URL_VALUE" ]; then
+	echo "ERROR: DATABASE_URL is not defined"
+	echo "Set a valid PostgreSQL DATABASE_URL in .env or in the environment before running dev.sh"
+	exit 1
+fi
+
+if printf '%s' "$DATABASE_URL_VALUE" | grep -q '^file:'; then
+	echo "ERROR: DATABASE_URL points to SQLite, but prisma/schema.prisma is configured for PostgreSQL"
+	echo "Update .env with a valid PostgreSQL connection string before running dev.sh"
 	exit 1
 fi
 

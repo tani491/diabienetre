@@ -1,53 +1,61 @@
 #!/bin/bash
 
-# 将 stderr 重定向到 stdout，避免 execute_command 因为 stderr 输出而报错
+# Rediriger stderr vers stdout pour éviter que execute_command échoue à cause d'une sortie sur stderr
 exec 2>&1
 
-set -e
+set -euo pipefail
 
-# 获取脚本所在目录（.zscripts 目录，即 workspace-agent/.zscripts）
-# 使用 $0 获取脚本路径（兼容 sh 和 bash）
+# Récupérer le répertoire du script (.zscripts)
+# Utiliser $0 pour récupérer le chemin du script (compatible sh et bash)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Next.js 项目路径
-NEXTJS_PROJECT_DIR="/home/z/my-project"
+# Chemin du projet Next.js
+NEXTJS_PROJECT_DIR="$PROJECT_DIR"
 
-# 检查 Next.js 项目目录是否存在
+# Vérifier que le répertoire du projet Next.js existe
 if [ ! -d "$NEXTJS_PROJECT_DIR" ]; then
-    echo "❌ 错误: Next.js 项目目录不存在: $NEXTJS_PROJECT_DIR"
+    echo "❌ Erreur: Le répertoire du projet Next.js n'existe pas: $NEXTJS_PROJECT_DIR"
     exit 1
 fi
 
-echo "🚀 开始构建 Next.js 应用和 mini-services..."
-echo "📁 Next.js 项目路径: $NEXTJS_PROJECT_DIR"
+echo "🚀 Démarrage de la construction de l'application Next.js et des mini-services..."
+echo "📁 Chemin du projet Next.js: $NEXTJS_PROJECT_DIR"
 
-# 切换到 Next.js 项目目录
+# Se placer dans le répertoire du projet Next.js
 cd "$NEXTJS_PROJECT_DIR" || exit 1
 
-# 设置环境变量
+# Définir les variables d'environnement
 export NEXT_TELEMETRY_DISABLED=1
 
-BUILD_DIR="/tmp/build_fullstack_$BUILD_ID"
-echo "📁 清理并创建构建目录: $BUILD_DIR"
+BUILD_SUFFIX="${BUILD_ID:-$(date +%Y%m%d%H%M%S)}"
+BUILD_DIR="${TMPDIR:-/tmp}/build_fullstack_$BUILD_SUFFIX"
+export BUILD_DIR
+echo "📁 Nettoyage et création du répertoire de build: $BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-# 安装依赖
-echo "📦 安装依赖..."
+if ! command -v bun >/dev/null 2>&1; then
+    echo "❌ bun n'est pas installé ou n'est pas disponible dans PATH"
+    exit 1
+fi
+
+# Installer les dépendances
+echo "📦 Installation des dépendances..."
 bun install
 
-# 构建 Next.js 应用
-echo "🔨 构建 Next.js 应用..."
+# Construire l'application Next.js
+echo "🔨 Construction de l'application Next.js..."
 bun run build
 
-# 构建 mini-services
-# 检查 Next.js 项目目录下是否有 mini-services 目录
+# Construire les mini-services
+# Vérifier si le répertoire mini-services existe dans le projet Next.js
 if [ -d "$NEXTJS_PROJECT_DIR/mini-services" ]; then
-    echo "🔨 构建 mini-services..."
-    # 使用 workspace-agent 目录下的 mini-services 脚本
+    echo "🔨 Construction des mini-services..."
+    # Utiliser les scripts mini-services du projet
     sh "$SCRIPT_DIR/mini-services-install.sh"
     sh "$SCRIPT_DIR/mini-services-build.sh"
 
-    # 复制 mini-services-start.sh 到 mini-services-dist 目录
+    # Copier mini-services-start.sh dans le répertoire mini-services-dist
     echo "  - 复制 mini-services-start.sh 到 $BUILD_DIR"
     cp "$SCRIPT_DIR/mini-services-start.sh" "$BUILD_DIR/mini-services-start.sh"
     chmod +x "$BUILD_DIR/mini-services-start.sh"
@@ -55,44 +63,39 @@ else
     echo "ℹ️  mini-services 目录不存在，跳过"
 fi
 
-# 将所有构建产物复制到临时构建目录
-echo "📦 收集构建产物到 $BUILD_DIR..."
+# Copier tous les artefacts de build dans le répertoire de build temporaire
+echo "📦 Collecte des artefacts de build dans $BUILD_DIR..."
 
-# 复制 Next.js standalone 构建输出
+# Copier la sortie standalone de build Next.js
 if [ -d ".next/standalone" ]; then
     echo "  - 复制 .next/standalone"
-    cp -r .next/standalone "$BUILD_DIR/next-service-dist/"
+    mkdir -p "$BUILD_DIR/next-service-dist"
+    cp -r .next/standalone/. "$BUILD_DIR/next-service-dist/"
 fi
 
-# 复制 Next.js 静态文件
+# Copier les fichiers statiques Next.js
 if [ -d ".next/static" ]; then
     echo "  - 复制 .next/static"
     mkdir -p "$BUILD_DIR/next-service-dist/.next"
     cp -r .next/static "$BUILD_DIR/next-service-dist/.next/"
 fi
 
-# 复制 public 目录
+# Copier le répertoire public
 if [ -d "public" ]; then
     echo "  - 复制 public"
     cp -r public "$BUILD_DIR/next-service-dist/"
 fi
 
-# 将测试环境数据库复制到构建产物中，生产环境直接使用这份数据库
-if [ -f "./db/custom.db" ]; then
-    echo "🗄️  复制测试环境数据库到构建产物..."
-    mkdir -p "$BUILD_DIR/db"
-    cp -r ./db/. "$BUILD_DIR/db/"
-
-    echo "🗄️  同步构建产物中的数据库结构..."
-    DATABASE_URL="file:$BUILD_DIR/db/custom.db" bun run db:push
-    echo "✅ 构建产物数据库已准备完成"
-    ls -lah "$BUILD_DIR/db"
-else
-    echo "❌ 未找到测试环境数据库文件 ./db/custom.db，无法继续构建生产包"
-    exit 1
+# Signaler si DATABASE_URL n'est pas prêt pour l'exécution
+if [ -z "${DATABASE_URL:-}" ]; then
+    echo "ℹ️  DATABASE_URL n'est pas défini pendant le build"
+    echo "   L'application devra recevoir une URL PostgreSQL valide au démarrage"
+elif printf '%s' "$DATABASE_URL" | grep -q '^file:'; then
+    echo "⚠️  DATABASE_URL pointe vers SQLite alors que Prisma est configuré en PostgreSQL"
+    echo "   Le build continue, mais l'exécution nécessitera une URL PostgreSQL valide"
 fi
 
-# 复制 Caddyfile（如果存在）
+# Copier le Caddyfile (s'il existe)
 if [ -f "Caddyfile" ]; then
     echo "  - 复制 Caddyfile"
     cp Caddyfile "$BUILD_DIR/"
@@ -100,23 +103,23 @@ else
     echo "ℹ️  Caddyfile 不存在，跳过"
 fi
 
-# 复制 start.sh 脚本
+# Copier le script start.sh
 echo "  - 复制 start.sh 到 $BUILD_DIR"
 cp "$SCRIPT_DIR/start.sh" "$BUILD_DIR/start.sh"
 chmod +x "$BUILD_DIR/start.sh"
 
-# 打包到 $BUILD_DIR.tar.gz
+# Créer l'archive dans $BUILD_DIR.tar.gz
 PACKAGE_FILE="${BUILD_DIR}.tar.gz"
 echo ""
-echo "📦 打包构建产物到 $PACKAGE_FILE..."
+echo "📦 Empaquetage des artefacts de build dans $PACKAGE_FILE..."
 cd "$BUILD_DIR" || exit 1
 tar -czf "$PACKAGE_FILE" .
 cd - > /dev/null || exit 1
 
-# # 清理临时目录
+# # Nettoyer le répertoire temporaire
 # rm -rf "$BUILD_DIR"
 
 echo ""
-echo "✅ 构建完成！所有产物已打包到 $PACKAGE_FILE"
+echo "✅ Construction terminée ! Tous les artefacts ont été empaquetés dans $PACKAGE_FILE"
 echo "📊 打包文件大小:"
 ls -lh "$PACKAGE_FILE"

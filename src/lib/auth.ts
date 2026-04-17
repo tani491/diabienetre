@@ -16,6 +16,17 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Simple admin check for demo
+        if (credentials.email === "admin@diabienetre.sn" && credentials.password === "admin2024") {
+          return {
+            id: "admin",
+            email: "admin@diabienetre.sn",
+            name: "Admin DiaBienEtre",
+            role: "admin",
+          };
+        }
+
+        // Fallback to database check
         const user = await db.user.findUnique({
           where: { email: credentials.email as string },
         });
@@ -65,7 +76,10 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      return baseUrl + "/admin";
+      // Si c'est une URL interne, l'utiliser; sinon utiliser /admin
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return `${baseUrl}/admin`;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,

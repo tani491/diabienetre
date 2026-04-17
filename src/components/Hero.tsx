@@ -21,7 +21,7 @@ export default function Hero({ onNavigate }: HeroProps) {
   };
 
   return (
-    <section className="relative w-full min-h-[600px] h-[80vh] flex items-center justify-center overflow-hidden">
+    <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img
@@ -30,8 +30,8 @@ export default function Hero({ onNavigate }: HeroProps) {
           className="w-full h-full object-cover"
         />
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-sage-800/80 via-sage-700/60 to-sage-600/40" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-right from-sage-800/80 via-sage-700/60 to-sage-600/40" />
+        <div className="absolute inset-0 bg-gradient-to-top from-black/30 via-transparent to-transparent" />
       </div>
 
       {/* Content */}

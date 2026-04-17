@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore, type Page } from "@/lib/store";
 import Header from "@/components/Header";
@@ -21,6 +22,7 @@ const pageVariants = {
 };
 
 function AppContent() {
+  const router = useRouter();
   const hasHydrated = useAppStore((s) => s._hasHydrated);
   const currentPage = useAppStore((s) => s.currentPage);
   const setCurrentPage = useAppStore((s) => s.setCurrentPage);
@@ -29,6 +31,27 @@ function AppContent() {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // Check for admin access and track page views
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('admin=true')) {
+      router.push('/admin');
+      // Clean the URL
+      window.history.replaceState({}, '', '/');
+    }
+
+    // Track page view
+    fetch("/api/analytics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        page: typeof window !== "undefined" ? window.location.pathname : "/",
+        referrer: typeof window !== "undefined" ? document.referrer : null,
+      }),
+    }).catch(() => {
+      // Silently fail if tracking fails
+    });
+  }, [router]);
 
   // Reset to home if on confirmation page but no lastOrderId
   const lastOrderId = useAppStore((s) => s.lastOrderId);

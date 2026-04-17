@@ -2,134 +2,155 @@
 
 set -e
 
-# 获取脚本所在目录
+# Récupérer le répertoire du script
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR"
+cleanup_ran=0
 
-# 存储所有子进程的 PID
+# Stocker les PID de tous les processus enfants
 pids=""
 
-# 清理函数：优雅关闭所有服务
+# Fonction de nettoyage : arrêter proprement tous les services
 cleanup() {
+    if [ "$cleanup_ran" -eq 1 ]; then
+        return
+    fi
+    cleanup_ran=1
+
     echo ""
-    echo "🛑 正在关闭所有服务..."
+    echo "🛑 Fermeture de tous les services..."
     
-    # 发送 SIGTERM 信号给所有子进程
+    # Envoyer le signal SIGTERM à tous les processus enfants
     for pid in $pids; do
         if kill -0 "$pid" 2>/dev/null; then
             service_name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "unknown")
-            echo "   关闭进程 $pid ($service_name)..."
+            echo "   Fermeture du processus $pid ($service_name)..."
             kill -TERM "$pid" 2>/dev/null
         fi
     done
     
-    # 等待所有进程退出（最多等待 5 秒）
+    # Attendre que tous les processus se terminent (5 secondes maximum)
     sleep 1
     for pid in $pids; do
         if kill -0 "$pid" 2>/dev/null; then
-            # 如果还在运行，等待最多 4 秒
+            # S'il tourne encore, attendre jusqu'à 4 secondes
             timeout=4
             while [ $timeout -gt 0 ] && kill -0 "$pid" 2>/dev/null; do
                 sleep 1
                 timeout=$((timeout - 1))
             done
-            # 如果仍然在运行，强制关闭
+            # S'il tourne toujours, forcer l'arrêt
             if kill -0 "$pid" 2>/dev/null; then
-                echo "   强制关闭进程 $pid..."
+                echo "   Fermeture forcée du processus $pid..."
                 kill -KILL "$pid" 2>/dev/null
             fi
         fi
     done
     
-    echo "✅ 所有服务已关闭"
-    exit 0
+    echo "✅ Tous les services ont été fermés"
 }
 
-echo "🚀 开始启动所有服务..."
+trap cleanup EXIT INT TERM
+
+echo "🚀 Démarrage de tous les services..."
 echo ""
 
-# 切换到构建目录
+# Se placer dans le répertoire de build
 cd "$BUILD_DIR" || exit 1
 
 ls -lah
 
-DEFAULT_PACKAGED_DB_PATH="/app/db/custom.db"
-DEFAULT_PACKAGED_DATABASE_URL="file:$DEFAULT_PACKAGED_DB_PATH"
+if ! command -v bun >/dev/null 2>&1; then
+    echo "❌ bun n'est pas installé ou n'est pas disponible dans PATH"
+    exit 1
+fi
 
-# 启动 Next.js 服务器
+# Démarrer le serveur Next.js
 if [ -f "./next-service-dist/server.js" ]; then
-    echo "🚀 启动 Next.js 服务器..."
+    echo "🚀 Démarrage du serveur Next.js..."
     cd next-service-dist/ || exit 1
     
-    # 设置环境变量
+    # Définir les variables d'environnement
     export NODE_ENV=production
     export PORT="${PORT:-3000}"
     export HOSTNAME="${HOSTNAME:-0.0.0.0}"
-    export DATABASE_URL="${DATABASE_URL:-$DEFAULT_PACKAGED_DATABASE_URL}"
 
-    if [ "$DATABASE_URL" = "$DEFAULT_PACKAGED_DATABASE_URL" ]; then
-        if [ ! -f "$DEFAULT_PACKAGED_DB_PATH" ]; then
-            echo "❌ 未找到打包后的数据库文件 $DEFAULT_PACKAGED_DB_PATH"
-            echo "   为避免生产环境启动到空数据库，启动已终止"
-            exit 1
-        fi
-
-        echo "🗄️  当前使用打包数据库: $DEFAULT_PACKAGED_DB_PATH"
-    else
-        echo "🗄️  当前使用外部指定数据库: $DATABASE_URL"
+    if [ -z "${DATABASE_URL:-}" ]; then
+        echo "❌ DATABASE_URL n'est pas défini"
+        echo "   Configure une URL PostgreSQL valide avant de démarrer l'application"
+        exit 1
     fi
+
+    if printf '%s' "$DATABASE_URL" | grep -q '^file:'; then
+        echo "❌ DATABASE_URL pointe vers SQLite, mais Prisma est configuré en PostgreSQL"
+        echo "   Configure une URL PostgreSQL valide avant de démarrer l'application"
+        exit 1
+    fi
+
+    echo "🗄️  Connexion PostgreSQL externe détectée"
     
-    # 后台启动 Next.js
+    # Démarrer Next.js en arrière-plan
     bun server.js &
     NEXT_PID=$!
     pids="$NEXT_PID"
     
-    # 等待一小段时间检查进程是否成功启动
+    # Attendre un court instant pour vérifier que le processus a bien démarré
     sleep 1
     if ! kill -0 "$NEXT_PID" 2>/dev/null; then
-        echo "❌ Next.js 服务器启动失败"
+        echo "❌ Échec du démarrage du serveur Next.js"
         exit 1
     else
-        echo "✅ Next.js 服务器已启动 (PID: $NEXT_PID, Port: $PORT)"
+        echo "✅ Serveur Next.js démarré (PID: $NEXT_PID, Port: $PORT)"
     fi
     
     cd ../
 else
-    echo "⚠️  未找到 Next.js 服务器文件: ./next-service-dist/server.js"
+    echo "⚠️  Fichier serveur Next.js introuvable: ./next-service-dist/server.js"
 fi
 
-# 启动 mini-services
+# Démarrer les mini-services
 if [ -f "./mini-services-start.sh" ]; then
-    echo "🚀 启动 mini-services..."
+    echo "🚀 Démarrage des mini-services..."
     
-    # 运行启动脚本（从根目录运行，脚本内部会处理 mini-services-dist 目录）
+    # Exécuter le script de démarrage (depuis la racine ; le script gère lui-même le répertoire mini-services-dist)
     sh ./mini-services-start.sh &
     MINI_PID=$!
     pids="$pids $MINI_PID"
     
-    # 等待一小段时间检查进程是否成功启动
+    # Attendre un court instant pour vérifier que le processus a bien démarré
     sleep 1
     if ! kill -0 "$MINI_PID" 2>/dev/null; then
-        echo "⚠️  mini-services 可能启动失败，但继续运行..."
+        echo "⚠️  Le démarrage des mini-services a peut-être échoué, mais continuation..."
     else
-        echo "✅ mini-services 已启动 (PID: $MINI_PID)"
+        echo "✅ Mini-services démarrés (PID: $MINI_PID)"
     fi
 elif [ -d "./mini-services-dist" ]; then
-    echo "⚠️  未找到 mini-services 启动脚本，但目录存在"
+    echo "⚠️  Script de démarrage des mini-services introuvable, mais répertoire présent"
 else
-    echo "ℹ️  mini-services 目录不存在，跳过"
+    echo "ℹ️  Répertoire mini-services inexistant, ignoré"
 fi
 
-# 启动 Caddy（如果存在 Caddyfile）
-echo "🚀 启动 Caddy..."
-
-# Caddy 作为前台进程运行（主进程）
-echo "✅ Caddy 已启动（前台运行）"
 echo ""
-echo "🎉 所有服务已启动！"
+echo "🎉 Tous les services ont été démarrés !"
 echo ""
-echo "💡 按 Ctrl+C 停止所有服务"
+echo "💡 Appuyez sur Ctrl+C pour arrêter tous les services"
 echo ""
 
-# Caddy 作为主进程运行
-exec caddy run --config Caddyfile --adapter caddyfile
+if [ -f "./Caddyfile" ]; then
+    if command -v caddy >/dev/null 2>&1; then
+        echo "🚀 Démarrage de Caddy..."
+        echo "✅ Caddy démarré (exécution en avant-plan)"
+        exec caddy run --config Caddyfile --adapter caddyfile
+    fi
+
+    echo "⚠️  Caddyfile présent, mais commande caddy introuvable"
+fi
+
+echo "ℹ️  Aucun proxy Caddy démarré, attente des processus applicatifs..."
+if [ -n "${NEXT_PID:-}" ]; then
+    wait "$NEXT_PID"
+elif [ -n "${MINI_PID:-}" ]; then
+    wait "$MINI_PID"
+else
+    echo "ℹ️  Aucun processus applicatif à maintenir au premier plan"
+fi

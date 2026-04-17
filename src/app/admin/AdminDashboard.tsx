@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Plus,
@@ -16,6 +17,12 @@ import {
   User,
   ArrowLeft,
   RefreshCw,
+  Eye,
+  Users,
+  TrendingUp,
+  Upload,
+  Lock,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,11 +87,31 @@ const ORDER_STATUSES = [
 ];
 
 export default function AdminDashboard() {
-  const { data: session } = useSession();
+  // All hooks MUST be declared first, before any conditional returns
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  
+  // State declarations - must come before conditional returns
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"products" | "orders">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "analytics" | "settings">("products");
+  const [uploading, setUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string>("");
+
+  // Password change state
+  const [passwordForm, setPasswordForm] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Form state
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -102,12 +129,15 @@ export default function AdminDashboard() {
   // Order detail dialog
   const [orderDetail, setOrderDetail] = useState<Order | null>(null);
 
+  // Fetch functions
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/products");
       const data = await res.json();
-      setProducts(data);
-    } catch {
+      setProducts(Array.isArray(data) ? data : data.products || data.data || []);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      setProducts([]);
       toast.error("Erreur lors du chargement des produits");
     }
   };
@@ -116,16 +146,68 @@ export default function AdminDashboard() {
     try {
       const res = await fetch("/api/orders");
       const data = await res.json();
-      setOrders(data);
-    } catch {
+      // Ensure data is an array
+      setOrders(Array.isArray(data) ? data : data.orders || data.data || []);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      setOrders([]);
       toast.error("Erreur lors du chargement des commandes");
     }
   };
 
+  const fetchAnalytics = async () => {
+    try {
+      const res = await fetch("/api/analytics");
+      const data = await res.json();
+      setAnalytics(data);
+    } catch {
+      toast.error("Erreur lors du chargement des analytics");
+    }
+  };
+
+  // Handle redirects in useEffect (not during render)
   useEffect(() => {
+    if (status === "loading") return; // Still loading, don't redirect yet
+    
+    if (status === "unauthenticated" || !session) {
+      router.push("/admin/login");
+      return;
+    }
+    
+    if (session.user?.role !== "admin") {
+      router.push("/");
+      return;
+    }
+    
+    // Only fetch if authenticated as admin
     fetchProducts();
     fetchOrders();
-  }, []);
+    fetchAnalytics();
+  }, [status, session, router]);
+  
+  // Loading state
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-sage-50 to-cream flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-sage-600 mx-auto mb-4" />
+          <p className="text-sage-600">Chargement du tableau de bord...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Unauthenticated or not admin - will redirect via useEffect
+  if (status === "unauthenticated" || !session || session.user?.role !== "admin") {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-sage-50 to-cream flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-sage-600 mx-auto mb-4" />
+          <p className="text-sage-600">Redirection...</p>
+        </div>
+      </div>
+    );
+  }
 
   const openNewForm = () => {
     setEditingProduct(null);
@@ -144,7 +226,35 @@ export default function AdminDashboard() {
       stock: product.stock.toString(),
       featured: product.featured,
     });
+    setImagePreview(product.image);
     setFormOpen(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+
+      const data = await res.json();
+      setForm({ ...form, image: data.url });
+      setImagePreview(data.url);
+      toast.success("Image téléchargée avec succès");
+    } catch (error) {
+      toast.error("Erreur lors du téléchargement de l'image");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -212,16 +322,71 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    signOut({ callbackUrl: "/" });
+  const handleLogout = async () => {
+    await signOut({ redirect: true, callbackUrl: "/" });
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess(false);
+
+    // Validation
+    if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError("Tous les champs sont obligatoires");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError("Les nouveaux mots de passe ne correspondent pas");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError("Le nouveau mot de passe doit faire au moins 6 caractères");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await fetch("/api/admin/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          oldPassword: passwordForm.oldPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPasswordError(data.error || "Erreur lors du changement de mot de passe");
+        return;
+      }
+
+      setPasswordSuccess(true);
+      setPasswordForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
+      toast.success("Mot de passe changé avec succès");
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (error) {
+      setPasswordError("Erreur lors du changement de mot de passe");
+      toast.error("Erreur lors du changement de mot de passe");
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   if (!session) return null;
 
-  const pendingCount = orders.filter((o) => o.status === "pending" || o.status === "whatsapp_pending").length;
+  const pendingCount = Array.isArray(orders) 
+    ? orders.filter((o) => o.status === "pending" || o.status === "whatsapp_pending").length 
+    : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sage-50 to-cream">
+    <div className="min-h-screen bg-linear-to-br from-sage-50 to-cream">
       {/* Admin Header */}
       <header className="bg-sage-800 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -279,11 +444,11 @@ export default function AdminDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
           {[
-            { label: "Produits", value: products.length, icon: Package, color: "text-sage-600" },
-            { label: "Vedettes", value: products.filter((p) => p.featured).length, icon: Star, color: "text-gold" },
-            { label: "Commandes", value: orders.length, icon: Package, color: "text-sage-600" },
-            { label: "En attente", value: orders.filter((o) => o.status === "pending").length, icon: Package, color: "text-amber-600" },
-            { label: "WhatsApp", value: orders.filter((o) => o.status === "whatsapp_pending").length, icon: Package, color: "text-green-600" },
+            { label: "Produits", value: Array.isArray(products) ? products.length : 0, icon: Package, color: "text-sage-600" },
+            { label: "Vedettes", value: Array.isArray(products) ? products.filter((p) => p.featured).length : 0, icon: Star, color: "text-gold" },
+            { label: "Commandes", value: Array.isArray(orders) ? orders.length : 0, icon: Package, color: "text-sage-600" },
+            { label: "En attente", value: Array.isArray(orders) ? orders.filter((o) => o.status === "pending").length : 0, icon: Package, color: "text-amber-600" },
+            { label: "WhatsApp", value: Array.isArray(orders) ? orders.filter((o) => o.status === "whatsapp_pending").length : 0, icon: Package, color: "text-green-600" },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-xl p-4 border border-sage-100/60 shadow-sm">
               <div className={`flex items-center gap-2 text-sage-500 text-xs mb-1`}>
@@ -296,7 +461,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           <Button
             variant={activeTab === "products" ? "default" : "ghost"}
             onClick={() => setActiveTab("products")}
@@ -313,6 +478,22 @@ export default function AdminDashboard() {
             {pendingCount > 0 && (
               <Badge className="ml-2 bg-gold text-white h-5 px-1.5 text-xs">{pendingCount}</Badge>
             )}
+          </Button>
+          <Button
+            variant={activeTab === "analytics" ? "default" : "ghost"}
+            onClick={() => { setActiveTab("analytics"); fetchAnalytics(); }}
+            className={`rounded-full ${activeTab === "analytics" ? "bg-sage-500 text-white hover:bg-sage-600 hover:text-white" : "text-sage-600 hover:bg-sage-50"}`}
+          >
+            <TrendingUp className="w-4 h-4 mr-1" />
+            Analytics
+          </Button>
+          <Button
+            variant={activeTab === "settings" ? "default" : "ghost"}
+            onClick={() => setActiveTab("settings")}
+            className={`rounded-full ${activeTab === "settings" ? "bg-sage-500 text-white hover:bg-sage-600 hover:text-white" : "text-sage-600 hover:bg-sage-50"}`}
+          >
+            <Lock className="w-4 h-4 mr-1" />
+            Paramètres
           </Button>
         </div>
 
@@ -458,8 +639,27 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div>
-              <Label className="text-sage-700">URL de l&apos;image *</Label>
-              <Input value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="/product-name.png" className="mt-1 border-sage-200 focus:border-sage-400" />
+              <Label className="text-sage-700">Image du produit *</Label>
+              {imagePreview && (
+                <div className="mt-2 mb-3 w-20 h-20 rounded-lg overflow-hidden border border-sage-200">
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="relative mt-1">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={uploading}
+                  className="border-sage-200 focus:border-sage-400"
+                />
+                {uploading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/50 rounded">
+                    <Loader2 className="w-4 h-4 animate-spin text-sage-600" />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-sage-500 mt-1">Format : JPG, PNG (max 5MB)</p>
             </div>
             <div>
               <Label className="text-sage-700">Catégorie</Label>
@@ -570,6 +770,248 @@ export default function AdminDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Analytics Section */}
+      {activeTab === "analytics" && analytics && (
+        <div className="space-y-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-2xl p-6 border border-sage-100/60 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-sage-100 rounded-lg">
+                  <Eye className="w-5 h-5 text-sage-600" />
+                </div>
+                <p className="text-sage-500 text-sm">Vues totales</p>
+              </div>
+              <p className="text-3xl font-bold text-sage-800">{analytics.totalViews}</p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 border border-sage-100/60 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Eye className="w-5 h-5 text-blue-600" />
+                </div>
+                <p className="text-sage-500 text-sm">Vues (30 jours)</p>
+              </div>
+              <p className="text-3xl font-bold text-blue-600">{analytics.recentViews}</p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 border border-sage-100/60 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <Users className="w-5 h-5 text-amber-600" />
+                </div>
+                <p className="text-sage-500 text-sm">Visiteurs uniques</p>
+              </div>
+              <p className="text-3xl font-bold text-amber-600">{analytics.uniqueVisitors}</p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 border border-sage-100/60 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-emerald-100 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+                </div>
+                <p className="text-sage-500 text-sm">Moy. vues/jour</p>
+              </div>
+              <p className="text-3xl font-bold text-emerald-600">
+                {analytics.recentViews > 0 ? Math.round(analytics.recentViews / 30) : 0}
+              </p>
+            </div>
+          </div>
+
+          {/* Top Pages */}
+          <div className="bg-white rounded-2xl p-6 border border-sage-100/60 shadow-sm">
+            <h3 className="text-lg font-semibold text-sage-800 mb-4">Pages les plus visitées</h3>
+            <div className="space-y-3">
+              {analytics.viewsByPage?.map((page: any, i: number) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-sage-50/50 rounded-lg">
+                  <span className="text-sm text-sage-700">{page.page || "/"}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-32 bg-sage-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-sage-500 h-full"
+                        style={{
+                          width: `${Math.min((page._count * 100) / Math.max(...analytics.viewsByPage.map((p: any) => p._count)), 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="font-semibold text-sage-700 w-12 text-right">{page._count}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Top Referrers */}
+          {analytics.topReferrers?.length > 0 && (
+            <div className="bg-white rounded-2xl p-6 border border-sage-100/60 shadow-sm">
+              <h3 className="text-lg font-semibold text-sage-800 mb-4">Principales sources de trafic</h3>
+              <div className="space-y-3">
+                {analytics.topReferrers?.map((ref: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-sage-50/50 rounded-lg">
+                    <span className="text-sm text-sage-700 truncate">{ref.referrer || "Direct"}</span>
+                    <span className="font-semibold text-sage-700">{ref._count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Settings Section */}
+      {activeTab === "settings" && (
+        <div className="max-w-2xl">
+          <div className="bg-white rounded-2xl shadow-sm border border-sage-100/60 p-6 sm:p-8">
+            <h3 className="text-lg font-semibold text-sage-800 mb-6 flex items-center gap-2">
+              <Lock className="w-5 h-5 text-sage-600" />
+              Changer le mot de passe
+            </h3>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              {/* Error Message */}
+              {passwordError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm"
+                >
+                  {passwordError}
+                </motion.div>
+              )}
+
+              {/* Success Message */}
+              {passwordSuccess && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm"
+                >
+                  Mot de passe changé avec succès!
+                </motion.div>
+              )}
+
+              {/* Old Password */}
+              <div>
+                <Label className="text-sage-700 font-medium">Ancien mot de passe *</Label>
+                <div className="relative mt-1.5">
+                  <input
+                    type={showOldPassword ? "text" : "password"}
+                    value={passwordForm.oldPassword}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        oldPassword: e.target.value,
+                      })
+                    }
+                    placeholder="Entrez votre ancien mot de passe"
+                    className="w-full px-4 py-2.5 border border-sage-200 rounded-lg focus:border-sage-400 focus:ring-sage-400/20 focus:ring-2 focus:outline-none text-sm transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOldPassword(!showOldPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600"
+                  >
+                    {showOldPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div>
+                <Label className="text-sage-700 font-medium">Nouveau mot de passe *</Label>
+                <div className="relative mt-1.5">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={passwordForm.newPassword}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        newPassword: e.target.value,
+                      })
+                    }
+                    placeholder="Entrez votre nouveau mot de passe (min 6 caractères)"
+                    className="w-full px-4 py-2.5 border border-sage-200 rounded-lg focus:border-sage-400 focus:ring-sage-400/20 focus:ring-2 focus:outline-none text-sm transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600"
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm New Password */}
+              <div>
+                <Label className="text-sage-700 font-medium">Confirmer le nouveau mot de passe *</Label>
+                <div className="relative mt-1.5">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    placeholder="Confirmez votre nouveau mot de passe"
+                    className="w-full px-4 py-2.5 border border-sage-200 rounded-lg focus:border-sage-400 focus:ring-sage-400/20 focus:ring-2 focus:outline-none text-sm transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="bg-sage-500 hover:bg-sage-600 text-white rounded-xl"
+                >
+                  {changingPassword ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Changement en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Changer le mot de passe
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+
+            {/* Security Note */}
+            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">💡 Conseil de sécurité:</span> Utilisez un mot de passe fort contenant des majuscules, des minuscules, des chiffres et des caractères spéciaux.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

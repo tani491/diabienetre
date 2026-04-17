@@ -405,7 +405,7 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
                   {/* WhatsApp Option */}
                   <button
                     onClick={() => setSelectedPayment('whatsapp')}
-                    className="group relative border-2 border-green-200 hover:border-green-400 rounded-2xl p-6 text-left transition-all duration-300 hover:shadow-lg cursor-pointer bg-gradient-to-br from-green-50 to-white"
+                    className="group relative border-2 border-green-200 hover:border-green-400 rounded-2xl p-6 text-left transition-all duration-300 hover:shadow-lg cursor-pointer bg-gradient from-green-50 to-white"
                   >
                     <div className="flex flex-col items-center text-center gap-4">
                       <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
@@ -429,7 +429,7 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
                   {/* Wave Option */}
                   <button
                     onClick={() => setSelectedPayment('wave')}
-                    className="group relative border-2 border-blue-200 hover:border-blue-400 rounded-2xl p-6 text-left transition-all duration-300 hover:shadow-lg cursor-pointer bg-gradient-to-br from-blue-50 to-white"
+                    className="group relative border-2 border-blue-200 hover:border-blue-400 rounded-2xl p-6 text-left transition-all duration-300 hover:shadow-lg cursor-pointer bg-gradient- from-blue-50 to-white"
                   >
                     <div className="flex flex-col items-center text-center gap-4">
                       <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
@@ -471,7 +471,7 @@ export default function Checkout({ onNavigate }: CheckoutPageProps) {
                   Effectuez votre paiement en envoyant le montant au numéro ci-dessous
                 </p>
 
-                <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 text-white mb-6">
+                <div className="bg-gradient- from-blue-500 to-blue-700 rounded-2xl p-6 text-white mb-6">
                   <p className="text-sm text-white/80 mb-1">
                     Envoyez le montant à
                   </p>

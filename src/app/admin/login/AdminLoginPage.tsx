@@ -14,7 +14,7 @@ export default function AdminLoginPage() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/admin";
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("admin@diabienetre.sn");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -46,7 +46,7 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sage-600 via-sage-500 to-sage-700 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-linear-to-br from-sage-600 via-sage-500 to-sage-700 flex items-center justify-center px-4 py-12">
       {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-gold/10 rounded-full blur-3xl" />
@@ -68,7 +68,7 @@ export default function AdminLoginPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="w-16 h-16 bg-gradient-to-br from-sage-400 to-sage-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg"
+              className="w-16 h-16 bg-linear-to-br from-sage-400 to-sage-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg"
             >
               <Shield className="w-8 h-8 text-white" />
             </motion.div>
@@ -93,24 +93,8 @@ export default function AdminLoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
-            <div>
-              <Label htmlFor="email" className="text-sage-700 text-sm font-medium mb-1.5 block">
-                Adresse email
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-sage-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@diabienetre.sn"
-                  required
-                  className="pl-11 h-12 border-sage-200 focus:border-sage-400 focus:ring-sage-400/20 rounded-xl bg-sage-50/50"
-                />
-              </div>
-            </div>
+            {/* Hidden Email */}
+            <input type="hidden" name="email" value={email} />
 
             {/* Password */}
             <div>
@@ -144,7 +128,7 @@ export default function AdminLoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-gradient-to-r from-sage-500 to-sage-600 hover:from-sage-600 hover:to-sage-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-base"
+              className="w-full h-12 bg-linear-to-r from-sage-500 to-sage-600 hover:from-sage-600 hover:to-sage-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-base"
             >
               {loading ? (
                 <>
