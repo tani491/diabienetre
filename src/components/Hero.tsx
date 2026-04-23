@@ -99,7 +99,7 @@ export default function Hero({ onNavigate }: HeroProps) {
               onClick={scrollToCategories}
               size="lg"
               variant="outline"
-              className="border-white/40 text-white hover:bg-white/15 hover:text-white font-semibold px-8 py-6 text-base rounded-full transition-all duration-300"
+              className="border-white/40 bg-transparent text-white hover:bg-white/15 hover:text-white font-semibold px-8 py-6 text-base rounded-full transition-all duration-300"
             >
               Nos Catégories
             </Button>

@@ -45,26 +45,27 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check old password against default or database
+    // Check old password against env var default or database
     let isValidOldPassword = false;
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@diabienetre.sn";
 
-    // Check against hardcoded default password
-    if (oldPassword === "admin2024") {
+    // Check against env-var password first
+    if (process.env.ADMIN_PASSWORD && oldPassword === process.env.ADMIN_PASSWORD) {
       isValidOldPassword = true;
     } else {
       // Check against database password if exists
-      const admin = await db.user.findUnique({
-        where: { email: "admin@diabienetre.sn" },
+      const adminUser = await db.user.findUnique({
+        where: { email: adminEmail },
       });
 
-      if (admin && admin.password) {
-        isValidOldPassword = await bcrypt.compare(oldPassword, admin.password);
+      if (adminUser && adminUser.password) {
+        isValidOldPassword = await bcrypt.compare(oldPassword, adminUser.password);
       }
     }
 
     if (!isValidOldPassword) {
       return NextResponse.json(
-        { error: "Old password is incorrect" },
+        { error: "Ancien mot de passe incorrect" },
         { status: 401 }
       );
     }
@@ -72,22 +73,18 @@ export async function PUT(request: NextRequest) {
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update or create admin user
-    const admin = await db.user.upsert({
-      where: { email: "admin@diabienetre.sn" },
+    await db.user.upsert({
+      where: { email: adminEmail },
       update: { password: hashedPassword },
       create: {
-        email: "admin@diabienetre.sn",
+        email: adminEmail,
         name: "Admin DiaBienEtre",
         password: hashedPassword,
         role: "admin",
       },
     });
 
-    return NextResponse.json({
-      message: "Password changed successfully",
-      success: true,
-    });
+    return NextResponse.json({ message: "Mot de passe changé avec succès", success: true });
   } catch (error) {
     console.error("Password change error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -36,11 +37,12 @@ model Order {
   customerName    String
   customerPhone   String
   customerAddress String
-  items           String
+  items           Json
   totalAmount     Float
   waveRef         String?
   paymentMethod   String   @default("wave")
   status          String   @default("pending")
+  ipAddress       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

@@ -16,11 +16,9 @@ import {
   LogOut,
   User,
   ArrowLeft,
-  RefreshCw,
   Eye,
   Users,
   TrendingUp,
-  Upload,
   Lock,
   EyeOff,
 } from "lucide-react";
@@ -64,12 +62,20 @@ interface Product {
   active: boolean;
 }
 
+interface OrderItem {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  quantity: number;
+}
+
 interface Order {
   id: string;
   customerName: string;
   customerPhone: string;
   customerAddress: string;
-  items: string;
+  items: OrderItem[] | string; // Json (Supabase/PostgreSQL) or legacy string (SQLite)
   totalAmount: number;
   waveRef: string | null;
   paymentMethod: string;
@@ -132,7 +138,7 @@ export default function AdminDashboard() {
   // Fetch functions
   const fetchProducts = async () => {
     try {
-      const res = await fetch("/api/products");
+      const res = await fetch("/api/admin/products");
       const data = await res.json();
       setProducts(Array.isArray(data) ? data : data.products || data.data || []);
     } catch (error) {
@@ -212,6 +218,7 @@ export default function AdminDashboard() {
   const openNewForm = () => {
     setEditingProduct(null);
     setForm({ name: "", description: "", price: "", image: "", category: "cheveux", stock: "50", featured: false });
+    setImagePreview("");
     setFormOpen(true);
   };
 
@@ -234,6 +241,10 @@ export default function AdminDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Show local preview immediately — no waiting for upload
+    const localPreview = URL.createObjectURL(file);
+    setImagePreview(localPreview);
+
     setUploading(true);
     try {
       const formData = new FormData();
@@ -244,14 +255,21 @@ export default function AdminDashboard() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Upload failed");
+      }
 
       const data = await res.json();
-      setForm({ ...form, image: data.url });
+      // Use functional update to avoid stale closure overwriting concurrent form edits
+      setForm((prev) => ({ ...prev, image: data.url }));
       setImagePreview(data.url);
+      URL.revokeObjectURL(localPreview);
       toast.success("Image téléchargée avec succès");
-    } catch (error) {
-      toast.error("Erreur lors du téléchargement de l'image");
+    } catch (error: any) {
+      setImagePreview("");
+      setForm((prev) => ({ ...prev, image: "" }));
+      toast.error(error?.message || "Erreur lors du téléchargement de l'image");
     } finally {
       setUploading(false);
     }
@@ -314,12 +332,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const getOrderItems = (itemsJson: string) => {
-    try {
-      return JSON.parse(itemsJson);
-    } catch {
-      return [];
-    }
+  const getOrderItems = (items: OrderItem[] | string): OrderItem[] => {
+    if (Array.isArray(items)) return items;
+    try { return JSON.parse(items as string); } catch { return []; }
   };
 
   const handleLogout = async () => {

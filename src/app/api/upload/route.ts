@@ -1,53 +1,62 @@
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { extname } from "path";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth-api";
+import { uploadToStorage } from "@/lib/supabase-storage";
+
+const MAX_SIZE = 5 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 
 export async function POST(request: NextRequest) {
+  const { authorized } = await requireAdmin();
+  if (!authorized) {
+    console.warn("[Upload] Unauthorized upload attempt");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
     if (!file) {
-      return NextResponse.json(
-        { error: "Aucun fichier fourni" },
-        { status: 400 }
-      );
+      console.warn("[Upload] No file provided");
+      return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
     }
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
+      console.warn(`[Upload] Invalid file type: ${file.type}`);
+      return NextResponse.json({ error: "Le fichier doit être une image" }, { status: 400 });
+    }
+
+    const ext = extname(file.name).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      console.warn(`[Upload] File extension not allowed: ${ext}`);
       return NextResponse.json(
-        { error: "Le fichier doit être une image" },
+        { error: "Format non supporté. Utilisez JPG, PNG, GIF ou WebP." },
         { status: 400 }
       );
     }
 
-    // Create unique filename
+    if (file.size > MAX_SIZE) {
+      console.warn(`[Upload] File too large: ${file.size} bytes (max ${MAX_SIZE})`);
+      return NextResponse.json({ error: "Image trop grande (max 5 Mo)" }, { status: 400 });
+    }
+
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(7);
-    const filename = `upload-${timestamp}-${randomStr}-${file.name.replace(/\s+/g, "-")}`;
+    const filename = `${timestamp}-${randomStr}${ext}`;
 
-    // Save to public/uploads
-    const publicDir = join(process.cwd(), "public", "uploads");
-    await mkdir(publicDir, { recursive: true });
+    console.log(`[Upload] Processing file: ${file.name} → ${filename} (${file.size} bytes)`);
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(join(publicDir, filename), buffer);
 
-    // Return the public URL path
-    const imageUrl = `/uploads/${filename}`;
+    const publicUrl = await uploadToStorage(filename, buffer, file.type);
 
-    return NextResponse.json({
-      success: true,
-      url: imageUrl,
-      filename,
-    });
-  } catch (error) {
-    console.error("Upload error:", error);
-    return NextResponse.json(
-      { error: "Erreur lors de l'upload" },
-      { status: 500 }
-    );
+    console.log(`[Upload] Success: ${filename} → ${publicUrl}`);
+    return NextResponse.json({ success: true, url: publicUrl, filename });
+  } catch (error: any) {
+    console.error("[Upload] Fatal error:", error);
+    const message = error?.message || "Erreur lors de l'upload";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

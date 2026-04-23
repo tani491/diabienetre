@@ -16,11 +16,13 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Simple admin check for demo
-        if (credentials.email === "admin@diabienetre.sn" && credentials.password === "admin2024") {
+        // Admin check via environment variables
+        const adminEmail = process.env.ADMIN_EMAIL;
+        const adminPassword = process.env.ADMIN_PASSWORD;
+        if (adminEmail && adminPassword && credentials.email === adminEmail && credentials.password === adminPassword) {
           return {
             id: "admin",
-            email: "admin@diabienetre.sn",
+            email: adminEmail,
             name: "Admin DiaBienEtre",
             role: "admin",
           };
