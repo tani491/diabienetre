@@ -45,11 +45,11 @@ export async function PUT(request: Request) {
     }
 
     const updateData = { ...parsed.data };
-    delete updateData.id;
+    const { id, ...dataWithoutId } = updateData;
 
     const product = await db.product.update({
-      where: { id: parsed.data.id },
-      data: updateData,
+      where: { id },
+      data: dataWithoutId,
     });
 
     return NextResponse.json(product);

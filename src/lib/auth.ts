@@ -22,8 +22,18 @@ export const authOptions: NextAuthOptions = {
         }
 
         const adminEmail = process.env.ADMIN_EMAIL;
-        const adminPassword = process.env.ADMIN_PASSWORD;
-        if (adminEmail && adminPassword && credentials.email === adminEmail && credentials.password === adminPassword) {
+        const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+
+        // Si l'email correspond à l'admin configuré, on vérifie exclusivement ici
+        // pour éviter l'énumération d'utilisateurs (pas de fall-through si email match).
+        if (adminEmail && credentials.email === adminEmail) {
+          if (!adminPasswordHash) {
+            // Pas de hash configuré → refuser et forcer la migration
+            console.error("ADMIN_PASSWORD_HASH doit être défini. Exécutez: node -e \"require('bcryptjs').hash('VotreMotDePasse',12).then(console.log)\"");
+            return null;
+          }
+          const valid = await bcrypt.compare(credentials.password, adminPasswordHash);
+          if (!valid) return null;
           return {
             id: "admin",
             email: adminEmail,
@@ -60,7 +70,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: 8 * 60 * 60, // 8 heures (admin session courte)
   },
   pages: {
     signIn: "/admin/login",

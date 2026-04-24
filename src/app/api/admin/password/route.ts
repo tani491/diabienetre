@@ -49,9 +49,11 @@ export async function PUT(request: NextRequest) {
     let isValidOldPassword = false;
     const adminEmail = process.env.ADMIN_EMAIL || "admin@diabienetre.sn";
 
-    if (process.env.ADMIN_PASSWORD && oldPassword === process.env.ADMIN_PASSWORD) {
-      isValidOldPassword = true;
+    // Check against hashed env var first
+    if (process.env.ADMIN_PASSWORD_HASH) {
+      isValidOldPassword = await bcrypt.compare(oldPassword, process.env.ADMIN_PASSWORD_HASH);
     } else {
+      // Fallback to database
       const adminUser = await db.user.findUnique({ where: { email: adminEmail } });
       if (adminUser && adminUser.password) {
         isValidOldPassword = await bcrypt.compare(oldPassword, adminUser.password);
@@ -80,7 +82,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ message: "Mot de passe changé avec succès", success: true });
   } catch (error) {
-    console.error("Password change error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("Password change failed");
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

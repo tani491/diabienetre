@@ -49,18 +49,14 @@ export async function POST(request: NextRequest) {
     const randomStr = Math.random().toString(36).substring(7);
     const filename = `${timestamp}-${randomStr}${ext}`;
 
-    console.log(`[Upload] Processing file: ${file.name} → ${filename} (${file.size} bytes)`);
-
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
     const publicUrl = await uploadToStorage(filename, buffer, file.type);
 
-    console.log(`[Upload] Success: ${filename} → ${publicUrl}`);
     return NextResponse.json({ success: true, url: publicUrl, filename });
   } catch (error: any) {
-    console.error("[Upload] Fatal error:", error);
-    const message = error?.message || "Erreur lors de l'upload";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Upload failed");
+    return NextResponse.json({ error: "Erreur lors de l'upload" }, { status: 500 });
   }
 }
