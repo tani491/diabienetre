@@ -1,55 +1,66 @@
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth-api";
+import { enforceApiRateLimit } from "@/lib/api-security";
+import { analyticsPayloadSchema } from "@/lib/validators";
 
 export async function POST(request: NextRequest) {
-  try {
-    const { page, referrer } = await request.json();
-    const userAgent = request.headers.get("user-agent") || "Unknown";
-    const ipAddress = request.headers.get("x-forwarded-for") || 
-                     request.headers.get("x-real-ip") || 
-                     "Unknown";
+  const rateLimitResponse = await enforceApiRateLimit(request);
+  if (rateLimitResponse) return rateLimitResponse;
 
-    // Create page view record
+  try {
+    const body = await request.json();
+    const parseResult = analyticsPayloadSchema.safeParse(body);
+
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error.issues.map((err) => err.message).join(", ") },
+        { status: 400 }
+      );
+    }
+
+    const userAgent = request.headers.get("user-agent") || "Unknown";
+    const ipAddress =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "Unknown";
+
     await db.pageView.create({
       data: {
-        page: page || "/",
-        referrer: referrer || null,
+        page: parseResult.data.page,
+        referrer: parseResult.data.referrer || null,
         userAgent,
-        ipAddress: ipAddress.split(",")[0].trim(), // Get first IP if multiple
+        ipAddress: ipAddress.split(",")[0].trim(),
       },
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Page view tracking error:", error);
-    return NextResponse.json(
-      { error: "Erreur lors du suivi" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur lors du suivi" }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
+  const { authorized } = await requireAdmin();
+  if (!authorized) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    // Get stats for the last 30 days
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    // Total page views
     const totalViews = await db.pageView.count();
     const recentViews = await db.pageView.count({
-      where: {
-        createdAt: { gte: thirtyDaysAgo },
-      },
+      where: { createdAt: { gte: thirtyDaysAgo } },
     });
 
-    // Unique visitors (IP addresses)
     const allViews = await db.pageView.findMany({
       where: { createdAt: { gte: thirtyDaysAgo } },
       select: { ipAddress: true },
     });
     const uniqueIPs = new Set(allViews.map((v) => v.ipAddress));
 
-    // Views by page
     const viewsByPage = await db.pageView.groupBy({
       by: ["page"],
       _count: true,
@@ -57,7 +68,6 @@ export async function GET(request: NextRequest) {
       orderBy: { _count: { page: "desc" } },
     });
 
-    // Top referrers
     const topReferrers = await db.pageView.groupBy({
       by: ["referrer"],
       _count: true,
@@ -69,7 +79,6 @@ export async function GET(request: NextRequest) {
       take: 10,
     });
 
-    // Views over time (grouped by day)
     const allTimeViews = await db.pageView.findMany({
       where: { createdAt: { gte: thirtyDaysAgo } },
       select: { createdAt: true },
@@ -91,9 +100,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Analytics fetch error:", error);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération des analytics" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur lors de la récupération des analytics" }, { status: 500 });
   }
 }

@@ -1,40 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "same-origin" },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+  {
+    key: "Content-Security-Policy",
+    value:
+      "default-src 'self'; base-uri 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co; frame-ancestors 'none'; form-action 'self';",
+  },
+];
+
+function applySecurityHeaders(response: NextResponse) {
+  SECURITY_HEADERS.forEach(({ key, value }) => response.headers.set(key, value));
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const secret = process.env.NEXTAUTH_SECRET;
 
-  // Ne protéger que les routes /admin/*
   if (pathname.startsWith("/admin")) {
-    // Autoriser la page de login sans authentification
-    if (pathname === "/admin/login") {
-      const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-      // Si déjà connecté, rediriger vers le dashboard
-      if (token) {
-        return NextResponse.redirect(new URL("/admin", request.url));
-      }
-      return NextResponse.next();
+    if (!secret) {
+      console.error("NEXTAUTH_SECRET must be defined to protect admin routes.");
+      return applySecurityHeaders(NextResponse.redirect(new URL("/admin/login", request.url)));
     }
 
-    // Protéger toutes les autres pages /admin/*
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (pathname === "/admin/login") {
+      const token = await getToken({ req: request, secret });
+      if (token) {
+        return applySecurityHeaders(NextResponse.redirect(new URL("/admin", request.url)));
+      }
+      return applySecurityHeaders(NextResponse.next());
+    }
 
-    // Pas de token = pas connecté → rediriger vers login
+    const token = await getToken({ req: request, secret });
     if (!token) {
       const loginUrl = new URL("/admin/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(loginUrl);
+      return applySecurityHeaders(NextResponse.redirect(loginUrl));
     }
 
-    // Vérifier que c'est bien l'admin autorisé
-    if (token.email !== process.env.ADMIN_EMAIL) {
-      return NextResponse.redirect(new URL("/", request.url));
+    if (process.env.ADMIN_EMAIL && token.email !== process.env.ADMIN_EMAIL) {
+      return applySecurityHeaders(NextResponse.redirect(new URL("/", request.url)));
     }
   }
 
-  return NextResponse.next();
+  return applySecurityHeaders(NextResponse.next());
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/api/:path*"],
 };

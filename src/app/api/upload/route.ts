@@ -2,11 +2,15 @@ import { extname } from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-api";
 import { uploadToStorage } from "@/lib/supabase-storage";
+import { enforceApiRateLimit } from "@/lib/api-security";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await enforceApiRateLimit(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const { authorized } = await requireAdmin();
   if (!authorized) {
     console.warn("[Upload] Unauthorized upload attempt");

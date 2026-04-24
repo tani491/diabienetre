@@ -3,6 +3,11 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
+const nextAuthSecret = process.env.NEXTAUTH_SECRET;
+if (!nextAuthSecret) {
+  throw new Error("NEXTAUTH_SECRET must be defined in environment variables");
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -16,7 +21,6 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Admin check via environment variables
         const adminEmail = process.env.ADMIN_EMAIL;
         const adminPassword = process.env.ADMIN_PASSWORD;
         if (adminEmail && adminPassword && credentials.email === adminEmail && credentials.password === adminPassword) {
@@ -28,7 +32,6 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        // Fallback to database check
         const user = await db.user.findUnique({
           where: { email: credentials.email as string },
         });
@@ -57,7 +60,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 jours - session persistante
+    maxAge: 30 * 24 * 60 * 60,
   },
   pages: {
     signIn: "/admin/login",
@@ -78,11 +81,10 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Si c'est une URL interne, l'utiliser; sinon utiliser /admin
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       if (new URL(url).origin === baseUrl) return url;
       return `${baseUrl}/admin`;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: nextAuthSecret,
 };
