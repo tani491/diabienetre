@@ -17,23 +17,21 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Mot de passe", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        // 1. On récupère les infos de Vercel
+        const adminEmail = process.env.ADMIN_EMAIL;
+        const adminPassword = process.env.ADMIN_PASSWORD; // On va utiliser la version simple
+
+        // 2. On récupère ce que tu as tapé dans le formulaire
+        const inputPassword = credentials?.password;
+        // Si le formulaire n'a pas d'email, on prend celui de Vercel par défaut
+        const inputEmail = credentials?.email || adminEmail;
+
+        if (!inputEmail || !inputPassword) {
           return null;
         }
 
-        const adminEmail = process.env.ADMIN_EMAIL;
-        const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
-
-        // Si l'email correspond à l'admin configuré, on vérifie exclusivement ici
-        // pour éviter l'énumération d'utilisateurs (pas de fall-through si email match).
-        if (adminEmail && credentials.email === adminEmail) {
-          if (!adminPasswordHash) {
-            // Pas de hash configuré → refuser et forcer la migration
-            console.error("ADMIN_PASSWORD_HASH doit être défini. Exécutez: node -e \"require('bcryptjs').hash('VotreMotDePasse',12).then(console.log)\"");
-            return null;
-          }
-          const valid = await bcrypt.compare(credentials.password, adminPasswordHash);
-          if (!valid) return null;
+        // 3. LA VÉRIFICATION (Simple et efficace)
+        if (inputEmail === adminEmail && inputPassword === adminPassword) {
           return {
             id: "admin",
             email: adminEmail,
@@ -42,29 +40,19 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
+        // Si ce n'est pas l'admin, on peut toujours chercher dans la DB (optionnel)
         const user = await db.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { email: inputEmail as string },
         });
 
-        if (!user || !user.password || user.role !== "admin") {
-          return null;
+        if (user && user.password && user.role === "admin") {
+          const isValidPassword = await bcrypt.compare(inputPassword, user.password);
+          if (isValidPassword) {
+            return { id: user.id, email: user.email, name: user.name, role: user.role };
+          }
         }
 
-        const isValidPassword = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
-
-        if (!isValidPassword) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        };
+        return null;
       },
     }),
   ],
