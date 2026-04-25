@@ -17,43 +17,37 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Mot de passe", type: "password" },
       },
       async authorize(credentials) {
-        // 1. On récupère les infos de Vercel
-        const adminEmail = process.env.ADMIN_EMAIL;
-        const adminPassword = process.env.ADMIN_PASSWORD; // On va utiliser la version simple
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
 
-        // 2. On récupère ce que tu as tapé dans le formulaire
-        const inputPassword = credentials?.password;
-        // Si le formulaire n'a pas d'email, on prend celui de Vercel par défaut
-        const inputEmail = credentials?.email || adminEmail;
+  const inputPassword = credentials?.password;
+  // Si le formulaire n'envoie pas d'email, on utilise celui de Vercel
+  const inputEmail = credentials?.email || adminEmail;
 
-        if (!inputEmail || !inputPassword) {
-          return null;
-        }
+  // 1. On vérifie que TOUT existe avant de continuer
+  // Ça enlève l'erreur rouge car TypeScript est sûr que ce ne sont pas des "undefined"
+  if (!inputEmail || !inputPassword || !adminEmail || !adminPassword) {
+    console.error("Identifiants manquants dans les variables d'environnement.");
+    return null;
+  }
 
-        // 3. LA VÉRIFICATION (Simple et efficace)
-        if (inputEmail === adminEmail && inputPassword === adminPassword) {
-          return {
-            id: "admin",
-            email: adminEmail,
-            name: "Admin DiaBienEtre",
-            role: "admin",
-          };
-        }
+  // 2. LA VÉRIFICATION (Maintenant TypeScript est content)
+  if (
+    inputEmail.trim() === adminEmail.trim() && 
+    inputPassword.trim() === adminPassword.trim()
+  ) {
+    console.log("Connexion réussie !");
+    return {
+      id: "admin-id",
+      email: adminEmail,
+      name: "Admin DiaBienEtre",
+      role: "admin",
+    };
+  }
 
-        // Si ce n'est pas l'admin, on peut toujours chercher dans la DB (optionnel)
-        const user = await db.user.findUnique({
-          where: { email: inputEmail as string },
-        });
-
-        if (user && user.password && user.role === "admin") {
-          const isValidPassword = await bcrypt.compare(inputPassword, user.password);
-          if (isValidPassword) {
-            return { id: user.id, email: user.email, name: user.name, role: user.role };
-          }
-        }
-
-        return null;
-      },
+  console.error("Échec : Le mot de passe ne correspond pas.");
+  return null;
+},
     }),
   ],
   session: {
