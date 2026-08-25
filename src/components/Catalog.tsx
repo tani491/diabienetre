@@ -7,17 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ProductCard from '@/components/ProductCard';
 import { useAppStore } from '@/lib/store';
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  category: string;
-  stock: number;
-  featured: boolean;
-}
+import { fetchPublicProducts, type Product } from '@/lib/products';
 
 export default function Catalog() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -31,10 +21,12 @@ export default function Catalog() {
   }, [selectedCategory]);
 
   useEffect(() => {
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data) => setProducts(data))
-      .catch(console.error);
+    fetchPublicProducts()
+      .then(setProducts)
+      .catch((error) => {
+        console.error(error);
+        setProducts([]);
+      });
   }, []);
 
   const filteredProducts = useMemo(() => {

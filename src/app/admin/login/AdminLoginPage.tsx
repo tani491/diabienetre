@@ -4,7 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowLeft, Loader2, Shield } from "lucide-react";
+import { Lock, ArrowLeft, Loader2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,6 @@ export default function AdminLoginPage() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/admin";
 
-  const [email, setEmail] = useState("admin@diabienetre.sn");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -27,7 +26,6 @@ export default function AdminLoginPage() {
 
     try {
       const result = await signIn("credentials", {
-        email,
         password,
         redirect: false,
       });
@@ -93,9 +91,6 @@ export default function AdminLoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Hidden Email */}
-            <input type="hidden" name="email" value={email} />
-
             {/* Password */}
             <div>
               <Label htmlFor="password" className="text-sage-700 text-sm font-medium mb-1.5 block">

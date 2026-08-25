@@ -12,18 +12,8 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel';
 import ProductCard from '@/components/ProductCard';
-import { useAppStore, type Page } from '@/lib/store';
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  category: string;
-  stock: number;
-  featured: boolean;
-}
+import { type Page } from '@/lib/store';
+import { fetchPublicProducts, type Product } from '@/lib/products';
 
 interface FeaturedProductsProps {
   onNavigate: (page: Page) => void;
@@ -33,13 +23,12 @@ export default function FeaturedProducts({ onNavigate }: FeaturedProductsProps) 
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data) => {
-        const featured = data.filter((p: Product) => p.featured);
-        setProducts(featured);
-      })
-      .catch(console.error);
+    fetchPublicProducts()
+      .then((products) => setProducts(products.filter((p) => p.featured)))
+      .catch((error) => {
+        console.error(error);
+        setProducts([]);
+      });
   }, []);
 
   if (products.length === 0) return null;
