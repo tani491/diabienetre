@@ -65,6 +65,7 @@ export async function POST(request: Request) {
         category: parsed.data.category,
         stock: parsed.data.stock,
         featured: parsed.data.featured,
+        isPromo: parsed.data.isPromo,
         active: true,
       },
     });

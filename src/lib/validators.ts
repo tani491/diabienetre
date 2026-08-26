@@ -63,6 +63,7 @@ export const productCreateSchema = z.object({
   category: z.string().transform(stripHtml).pipe(z.string().min(1).max(100)),
   stock: z.preprocess((value) => Number(value), z.number().int().nonnegative()).optional().default(0),
   featured: booleanFromString.optional().default(false),
+  isPromo: booleanFromString.optional().default(false),
 });
 
 export const productUpdateSchema = z.object({
@@ -74,7 +75,18 @@ export const productUpdateSchema = z.object({
   category: z.string().transform(stripHtml).pipe(z.string().min(1).max(100)).optional(),
   stock: z.preprocess((value) => Number(value), z.number().int().nonnegative()).optional(),
   featured: booleanFromString.optional(),
+  isPromo: booleanFromString.optional(),
   active: booleanFromString.optional(),
+});
+
+export const storeSettingsSchema = z.object({
+  announcementText: z
+    .string()
+    .transform(stripHtml)
+    .pipe(z.string().max(200))
+    .optional()
+    .default(""),
+  announcementEnabled: booleanFromString.optional().default(true),
 });
 
 export const idQuerySchema = z.object({

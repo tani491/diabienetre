@@ -7,6 +7,7 @@ export interface Product {
   category: string;
   stock: number;
   featured: boolean;
+  isPromo: boolean;
 }
 
 function normalizeProducts(payload: unknown): Product[] {

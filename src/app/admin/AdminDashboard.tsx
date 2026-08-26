@@ -5,12 +5,14 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+  BadgePercent,
   Plus,
   Pencil,
   Trash2,
   Save,
   X,
   Star,
+  Megaphone,
   Loader2,
   Package,
   LogOut,
@@ -59,6 +61,7 @@ interface Product {
   category: string;
   stock: number;
   featured: boolean;
+  isPromo: boolean;
   active: boolean;
 }
 
@@ -83,6 +86,11 @@ interface Order {
   createdAt: string;
 }
 
+interface StoreSettings {
+  announcementText: string;
+  announcementEnabled: boolean;
+}
+
 const ORDER_STATUSES = [
   { value: "pending", label: "En attente", color: "bg-amber-100 text-amber-700" },
   { value: "whatsapp_pending", label: "WhatsApp", color: "bg-green-100 text-green-700" },
@@ -105,6 +113,11 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"products" | "orders" | "analytics" | "settings">("products");
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [settings, setSettings] = useState<StoreSettings>({
+    announcementText: "",
+    announcementEnabled: true,
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
 
   // Password change state
   const [passwordForm, setPasswordForm] = useState({
@@ -130,6 +143,7 @@ export default function AdminDashboard() {
     category: "cheveux",
     stock: "50",
     featured: false,
+    isPromo: false,
   });
 
   // Order detail dialog
@@ -171,6 +185,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch("/api/settings");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch settings");
+      }
+
+      setSettings({
+        announcementText: typeof data.announcementText === "string" ? data.announcementText : "",
+        announcementEnabled: data.announcementEnabled !== false,
+      });
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      toast.error("Erreur lors du chargement des paramètres");
+    }
+  };
+
   // Handle redirects in useEffect (not during render)
   useEffect(() => {
     if (status === "loading") return; // Still loading, don't redirect yet
@@ -189,6 +222,7 @@ export default function AdminDashboard() {
     fetchProducts();
     fetchOrders();
     fetchAnalytics();
+    fetchSettings();
   }, [status, session, router]);
   
   // Loading state
@@ -217,7 +251,7 @@ export default function AdminDashboard() {
 
   const openNewForm = () => {
     setEditingProduct(null);
-    setForm({ name: "", description: "", price: "", image: "", category: "cheveux", stock: "50", featured: false });
+    setForm({ name: "", description: "", price: "", image: "", category: "cheveux", stock: "50", featured: false, isPromo: false });
     setImagePreview("");
     setFormOpen(true);
   };
@@ -232,6 +266,7 @@ export default function AdminDashboard() {
       category: product.category,
       stock: product.stock.toString(),
       featured: product.featured,
+      isPromo: product.isPromo,
     });
     setImagePreview(product.image);
     setFormOpen(true);
@@ -394,6 +429,34 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update settings");
+      }
+
+      setSettings({
+        announcementText: typeof data.announcementText === "string" ? data.announcementText : "",
+        announcementEnabled: data.announcementEnabled !== false,
+      });
+      toast.success("Annonce mise à jour");
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors de la mise à jour de l'annonce");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   if (!session) return null;
 
   const pendingCount = Array.isArray(orders) 
@@ -457,10 +520,11 @@ export default function AdminDashboard() {
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           {[
             { label: "Produits", value: Array.isArray(products) ? products.length : 0, icon: Package, color: "text-sage-600" },
             { label: "Vedettes", value: Array.isArray(products) ? products.filter((p) => p.featured).length : 0, icon: Star, color: "text-gold" },
+            { label: "Promos", value: Array.isArray(products) ? products.filter((p) => p.isPromo).length : 0, icon: BadgePercent, color: "text-red-600" },
             { label: "Commandes", value: Array.isArray(orders) ? orders.length : 0, icon: Package, color: "text-sage-600" },
             { label: "En attente", value: Array.isArray(orders) ? orders.filter((o) => o.status === "pending").length : 0, icon: Package, color: "text-amber-600" },
             { label: "WhatsApp", value: Array.isArray(orders) ? orders.filter((o) => o.status === "whatsapp_pending").length : 0, icon: Package, color: "text-green-600" },
@@ -504,7 +568,7 @@ export default function AdminDashboard() {
           </Button>
           <Button
             variant={activeTab === "settings" ? "default" : "ghost"}
-            onClick={() => setActiveTab("settings")}
+            onClick={() => { setActiveTab("settings"); fetchSettings(); }}
             className={`rounded-full ${activeTab === "settings" ? "bg-sage-500 text-white hover:bg-sage-600 hover:text-white" : "text-sage-600 hover:bg-sage-50"}`}
           >
             <Lock className="w-4 h-4 mr-1" />
@@ -524,6 +588,7 @@ export default function AdminDashboard() {
                     <TableHead className="text-sage-600 font-semibold hidden sm:table-cell">Catégorie</TableHead>
                     <TableHead className="text-sage-600 font-semibold hidden md:table-cell">Stock</TableHead>
                     <TableHead className="text-sage-600 font-semibold hidden lg:table-cell">Vedette</TableHead>
+                    <TableHead className="text-sage-600 font-semibold hidden lg:table-cell">Promo</TableHead>
                     <TableHead className="text-sage-600 font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -546,6 +611,9 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-sage-600 text-sm">{product.stock}</TableCell>
                       <TableCell className="hidden lg:table-cell">{product.featured && <Star className="w-4 h-4 text-gold fill-gold" />}</TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {product.isPromo && <Badge className="bg-red-50 text-red-700 border border-red-200 shadow-none">En promo</Badge>}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEditForm(product)} className="text-sage-400 hover:text-sage-600 hover:bg-sage-50 h-8 w-8"><Pencil className="w-3.5 h-3.5" /></Button>
@@ -689,6 +757,10 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between">
               <Label className="text-sage-700">Produit vedette</Label>
               <Switch checked={form.featured} onCheckedChange={(checked) => setForm({ ...form, featured: checked })} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-sage-700">En promo</Label>
+              <Switch checked={form.isPromo} onCheckedChange={(checked) => setForm({ ...form, isPromo: checked })} />
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
@@ -876,7 +948,65 @@ export default function AdminDashboard() {
 
       {/* Settings Section */}
       {activeTab === "settings" && (
-        <div className="max-w-2xl">
+        <div className="max-w-2xl space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-sage-100/60 p-6 sm:p-8">
+            <h3 className="text-lg font-semibold text-sage-800 mb-6 flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-sage-600" />
+              Barre d'annonce
+            </h3>
+
+            <form onSubmit={handleSaveSettings} className="space-y-4">
+              <div>
+                <Label className="text-sage-700 font-medium">Texte de l'annonce</Label>
+                <textarea
+                  value={settings.announcementText}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      announcementText: e.target.value,
+                    })
+                  }
+                  placeholder="En promo - 50% sur les soins !"
+                  maxLength={200}
+                  rows={3}
+                  className="mt-1.5 w-full rounded-lg border border-sage-200 px-3 py-2 text-sm focus:border-sage-400 focus:ring-sage-400/20 focus:outline-none resize-none"
+                />
+                <p className="mt-1 text-xs text-sage-500">
+                  {settings.announcementText.length}/200 caractères
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl bg-sage-50 p-4">
+                <div>
+                  <Label className="text-sage-700 font-medium">Afficher l'annonce</Label>
+                  <p className="text-xs text-sage-500">Visible tout en haut du site public.</p>
+                </div>
+                <Switch
+                  checked={settings.announcementEnabled}
+                  onCheckedChange={(checked) =>
+                    setSettings({
+                      ...settings,
+                      announcementEnabled: checked,
+                    })
+                  }
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={savingSettings}
+                className="bg-sage-500 hover:bg-sage-600 text-white rounded-xl"
+              >
+                {savingSettings ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Enregistrer l'annonce
+              </Button>
+            </form>
+          </div>
+
           <div className="bg-white rounded-2xl shadow-sm border border-sage-100/60 p-6 sm:p-8">
             <h3 className="text-lg font-semibold text-sage-800 mb-6 flex items-center gap-2">
               <Lock className="w-5 h-5 text-sage-600" />

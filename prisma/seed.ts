@@ -110,6 +110,16 @@ async function seed() {
     },
   });
 
+  await db.storeSettings.upsert({
+    where: { id: 'main' },
+    update: {},
+    create: {
+      id: 'main',
+      announcementText: 'En promo - 50% sur les soins !',
+      announcementEnabled: true,
+    },
+  });
+
   // Insert products
   for (const product of products) {
     await db.product.create({ data: product });

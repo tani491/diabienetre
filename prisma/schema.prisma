@@ -27,9 +27,18 @@ model Product {
   category    String
   stock       Int      @default(0)
   featured    Boolean  @default(false)
+  isPromo     Boolean  @default(false)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model StoreSettings {
+  id                  String   @id @default("main")
+  announcementText    String   @default("")
+  announcementEnabled Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Order {

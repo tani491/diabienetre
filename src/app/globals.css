@@ -169,3 +169,22 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: oklch(0.55 0.06 145);
 }
+
+@keyframes announcement-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.announcement-marquee {
+  animation: announcement-marquee 24s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-marquee {
+    animation: none;
+  }
+}

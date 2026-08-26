@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Star, Check } from 'lucide-react';
+import { BadgePercent, ShoppingBag, Star, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
@@ -17,6 +17,7 @@ interface Product {
   category: string;
   stock: number;
   featured: boolean;
+  isPromo: boolean;
 }
 
 interface ProductCardProps {
@@ -68,6 +69,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           <Badge className="absolute top-3 left-3 bg-gold text-white font-medium shadow-md border-0">
             <Star className="w-3 h-3 mr-1" />
             Vedette
+          </Badge>
+        )}
+
+        {product.isPromo && (
+          <Badge className="absolute top-3 right-3 bg-red-500 text-white font-medium shadow-md border-0">
+            <BadgePercent className="w-3 h-3 mr-1" />
+            En promo
           </Badge>
         )}
 
