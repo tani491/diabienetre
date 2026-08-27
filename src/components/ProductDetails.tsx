@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BadgePercent, Check, ShoppingBag, Star } from "lucide-react";
@@ -26,26 +26,23 @@ interface ProductDetailsProps {
   product: ProductDetailsProduct;
 }
 
-function buildGalleryImages(product: ProductDetailsProduct) {
-  const extraImages = product.gallery
-    .filter((image) => image.trim().length > 0)
-    .slice(0, 4);
-
-  if (extraImages.length === 0) {
-    return Array.from({ length: 4 }, () => product.image);
-  }
-
-  return [product.image, ...extraImages];
-}
-
 export default function ProductDetails({ product }: ProductDetailsProps) {
   const router = useRouter();
   const addToCart = useAppStore((s) => s.addToCart);
   const [added, setAdded] = useState(false);
-  const images = useMemo(() => buildGalleryImages(product), [product]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const selectedImage = images[selectedIndex] ?? product.image;
+  const [mainImage, setMainImage] = useState(product.image);
+  const allImages = useMemo(
+    () =>
+      [product.image, ...(product.gallery || [])].filter(
+        (image): image is string => Boolean(image?.trim())
+      ),
+    [product.image, product.gallery]
+  );
   const outOfStock = product.stock <= 0;
+
+  useEffect(() => {
+    setMainImage(product.image);
+  }, [product.image]);
 
   const handleAddToCart = () => {
     addToCart({
@@ -83,7 +80,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
           <div>
             <div className="relative aspect-square overflow-hidden rounded-2xl bg-sage-50 shadow-sm">
               <Image
-                src={selectedImage}
+                src={mainImage}
                 alt={product.name}
                 fill
                 priority
@@ -98,28 +95,30 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
               )}
             </div>
 
-            <div className="mt-4 grid grid-cols-4 gap-3">
-              {images.map((image, index) => (
-                <button
-                  key={`${image}-${index}`}
-                  type="button"
-                  onClick={() => setSelectedIndex(index)}
-                  className={`relative aspect-square overflow-hidden rounded-xl border bg-sage-50 transition-all ${
-                    selectedIndex === index
-                      ? "border-sage-500 ring-2 ring-sage-200"
-                      : "border-sage-100 hover:border-sage-300"
-                  }`}
-                >
-                  <Image
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    fill
-                    sizes="25vw"
-                    className="object-cover"
-                  />
-                </button>
-              ))}
-            </div>
+            {allImages.length > 1 && (
+              <div className="mt-4 grid grid-cols-4 gap-3">
+                {allImages.map((image, index) => (
+                  <button
+                    key={`${image}-${index}`}
+                    type="button"
+                    onClick={() => setMainImage(image)}
+                    className={`relative aspect-square overflow-hidden rounded-xl border bg-sage-50 transition-all ${
+                      mainImage === image
+                        ? "border-sage-500 ring-2 ring-sage-200"
+                        : "border-sage-100 hover:border-sage-300"
+                    }`}
+                  >
+                    <Image
+                      src={image}
+                      alt={`${product.name} ${index + 1}`}
+                      fill
+                      sizes="25vw"
+                      className="object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="lg:pt-6">

@@ -66,15 +66,14 @@ export default function Catalog() {
           transition={{ duration: 0.5 }}
           className="mb-10"
         >
-          <Button
+          <button
             type="button"
-            variant="ghost"
             onClick={() => router.back()}
-            className="mb-5 -ml-3 rounded-full text-sage-600 hover:bg-sage-50 hover:text-sage-800"
+            className="mb-5 flex items-center gap-2 cursor-pointer text-gray-600 hover:text-black z-10 relative p-2 -ml-2"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="w-4 h-4" />
             Retour
-          </Button>
+          </button>
           <h1 className="text-3xl sm:text-4xl font-bold text-sage-800 mb-2">
             Notre Catalogue
           </h1>
