@@ -1,14 +1,18 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface HeroProps {
   onNavigate: (page: 'catalog') => void;
+  heroImageUrl?: string | null;
 }
 
-export default function Hero({ onNavigate }: HeroProps) {
+export default function Hero({ onNavigate, heroImageUrl }: HeroProps) {
+  const heroImageSrc = heroImageUrl?.trim() || "/hero-image.png";
+
   const scrollToCatalog = () => {
     onNavigate('catalog');
   };
@@ -24,10 +28,13 @@ export default function Hero({ onNavigate }: HeroProps) {
     <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
-        <img
-          src="/hero-image.png"
+        <Image
+          src={heroImageSrc}
           alt="DiaBienEtre Hero"
-          className="w-full h-full object-cover"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
         />
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-right from-sage-800/80 via-sage-700/60 to-sage-600/40" />

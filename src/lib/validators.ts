@@ -22,6 +22,18 @@ const urlSchema = z.string().url().refine((url) => {
   return parsed.protocol === "https:" && !parsed.hostname.includes("localhost");
 }, "URL doit être HTTPS et non localhost");
 
+const optionalUrlSchema = z.preprocess(
+  (value) => {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+
+    return value;
+  },
+  urlSchema.nullable().optional()
+);
+
 // Schéma de mot de passe complexe (OWASP A02 - Broken Authentication)
 const passwordSchema = z.string().min(12, "Au moins 12 caractères").regex(
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
@@ -87,6 +99,14 @@ export const storeSettingsSchema = z.object({
     .optional()
     .default(""),
   announcementEnabled: booleanFromString.optional().default(true),
+  logoUrl: optionalUrlSchema,
+  heroImageUrl: optionalUrlSchema,
+});
+
+export const testimonialCreateSchema = z.object({
+  name: z.string().transform(stripHtml).pipe(z.string().min(2).max(100)),
+  content: z.string().transform(stripHtml).pipe(z.string().min(10).max(500)),
+  rating: z.preprocess((value) => Number(value), z.number().int().min(1).max(5)).optional().default(5),
 });
 
 export const idQuerySchema = z.object({

@@ -10,6 +10,7 @@ import { useAppStore, type Page } from '@/lib/store';
 
 interface HeaderProps {
   onNavigate: (page: Page) => void;
+  logoUrl?: string | null;
 }
 
 const navItems: { label: string; page: Page; icon: React.ReactNode }[] = [
@@ -17,12 +18,13 @@ const navItems: { label: string; page: Page; icon: React.ReactNode }[] = [
   { label: 'Catalogue', page: 'catalog', icon: <Grid3X3 className="w-4 h-4" /> },
 ];
 
-export default function Header({ onNavigate }: HeaderProps) {
+export default function Header({ onNavigate, logoUrl }: HeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const currentPage = useAppStore((s) => s.currentPage);
   const cartCount = useAppStore((s) => s.cartCount);
   const hasHydrated = useAppStore((s) => s._hasHydrated);
+  const logoSrc = logoUrl?.trim() || "/logo.png";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -52,7 +54,7 @@ export default function Header({ onNavigate }: HeaderProps) {
           >
             <div className="w-10 h-10 sm:w-11 sm:h-11 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-md group-hover:bg-white/30 transition-all duration-200 overflow-hidden">
               <Image
-                src="/logo.png"
+                src={logoSrc}
                 alt="DiaBienEtre"
                 width={28}
                 height={28}
@@ -121,7 +123,7 @@ export default function Header({ onNavigate }: HeaderProps) {
                   <div className="flex items-center gap-3 mb-6 pb-4 border-b border-sage-100">
                     <div className="w-10 h-10 bg-sage-400 rounded-xl flex items-center justify-center overflow-hidden">
                       <Image
-                        src="/logo.png"
+                        src={logoSrc}
                         alt="DiaBienEtre"
                         width={24}
                         height={24}

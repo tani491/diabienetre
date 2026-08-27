@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore, type Page } from "@/lib/store";
@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Categories from "@/components/Categories";
 import FeaturedProducts from "@/components/FeaturedProducts";
+import TestimonialsSection from "@/components/TestimonialsSection";
 import Catalog from "@/components/Catalog";
 import Cart from "@/components/Cart";
 import Checkout from "@/components/Checkout";
@@ -21,16 +22,41 @@ const pageVariants = {
   exit: { opacity: 0, y: -20 },
 };
 
+interface PublicStoreSettings {
+  logoUrl: string | null;
+  heroImageUrl: string | null;
+}
+
 function AppContent() {
   const router = useRouter();
   const hasHydrated = useAppStore((s) => s._hasHydrated);
   const currentPage = useAppStore((s) => s.currentPage);
   const setCurrentPage = useAppStore((s) => s.setCurrentPage);
+  const [storeSettings, setStoreSettings] = useState<PublicStoreSettings>({
+    logoUrl: null,
+    heroImageUrl: null,
+  });
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  useEffect(() => {
+    fetch("/api/settings", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+
+        setStoreSettings({
+          logoUrl: typeof data.logoUrl === "string" ? data.logoUrl : null,
+          heroImageUrl: typeof data.heroImageUrl === "string" ? data.heroImageUrl : null,
+        });
+      })
+      .catch(() => {
+        setStoreSettings({ logoUrl: null, heroImageUrl: null });
+      });
+  }, []);
 
   // Check for admin access and track page views
   useEffect(() => {
@@ -68,9 +94,10 @@ function AppContent() {
       case "home":
         return (
           <motion.div key="home" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4 }}>
-            <Hero onNavigate={handleNavigate} />
+            <Hero onNavigate={handleNavigate} heroImageUrl={storeSettings.heroImageUrl} />
             <Categories onNavigate={handleNavigate} />
             <FeaturedProducts onNavigate={handleNavigate} />
+            <TestimonialsSection />
           </motion.div>
         );
       case "catalog":
@@ -104,7 +131,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header onNavigate={handleNavigate} />
+      <Header onNavigate={handleNavigate} logoUrl={storeSettings.logoUrl} />
       <main className="flex-1">
         <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
       </main>

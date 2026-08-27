@@ -8,6 +8,8 @@ const SETTINGS_ID = "main";
 const DEFAULT_SETTINGS = {
   announcementText: "",
   announcementEnabled: true,
+  logoUrl: null,
+  heroImageUrl: null,
 };
 
 export const dynamic = "force-dynamic";

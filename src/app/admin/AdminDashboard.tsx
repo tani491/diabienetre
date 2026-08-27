@@ -13,6 +13,8 @@ import {
   X,
   Star,
   Megaphone,
+  ImageIcon,
+  MessageSquareQuote,
   Loader2,
   Package,
   LogOut,
@@ -89,6 +91,16 @@ interface Order {
 interface StoreSettings {
   announcementText: string;
   announcementEnabled: boolean;
+  logoUrl: string;
+  heroImageUrl: string;
+}
+
+interface Testimonial {
+  id: string;
+  name: string;
+  content: string;
+  rating: number;
+  createdAt: string;
 }
 
 const ORDER_STATUSES = [
@@ -108,16 +120,26 @@ export default function AdminDashboard() {
   // State declarations - must come before conditional returns
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "analytics" | "settings">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "analytics" | "testimonials" | "settings">("products");
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [settings, setSettings] = useState<StoreSettings>({
     announcementText: "",
     announcementEnabled: true,
+    logoUrl: "",
+    heroImageUrl: "",
   });
   const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsUploading, setSettingsUploading] = useState<"logoUrl" | "heroImageUrl" | null>(null);
+  const [savingTestimonial, setSavingTestimonial] = useState(false);
+  const [testimonialForm, setTestimonialForm] = useState({
+    name: "",
+    content: "",
+    rating: "5",
+  });
 
   // Password change state
   const [passwordForm, setPasswordForm] = useState({
@@ -197,10 +219,29 @@ export default function AdminDashboard() {
       setSettings({
         announcementText: typeof data.announcementText === "string" ? data.announcementText : "",
         announcementEnabled: data.announcementEnabled !== false,
+        logoUrl: typeof data.logoUrl === "string" ? data.logoUrl : "",
+        heroImageUrl: typeof data.heroImageUrl === "string" ? data.heroImageUrl : "",
       });
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast.error("Erreur lors du chargement des paramètres");
+    }
+  };
+
+  const fetchTestimonials = async () => {
+    try {
+      const res = await fetch("/api/testimonials");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch testimonials");
+      }
+
+      setTestimonials(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching testimonials:", error);
+      setTestimonials([]);
+      toast.error("Erreur lors du chargement des avis");
     }
   };
 
@@ -223,6 +264,7 @@ export default function AdminDashboard() {
     fetchOrders();
     fetchAnalytics();
     fetchSettings();
+    fetchTestimonials();
   }, [status, session, router]);
   
   // Loading state
@@ -310,6 +352,40 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSettingsImageUpload = async (
+    field: "logoUrl" | "heroImageUrl",
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSettingsUploading(field);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Upload failed");
+      }
+
+      setSettings((prev) => ({ ...prev, [field]: data.url }));
+      toast.success(field === "logoUrl" ? "Logo téléchargé" : "Image d'accueil téléchargée");
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors du téléchargement de l'image");
+    } finally {
+      setSettingsUploading(null);
+      e.target.value = "";
+    }
+  };
+
   const handleSave = async () => {
     if (!form.name || !form.price || !form.image) {
       toast.error("Remplissez les champs obligatoires");
@@ -349,6 +425,62 @@ export default function AdminDashboard() {
       fetchProducts();
     } catch {
       toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const handleCreateTestimonial = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!testimonialForm.name.trim() || !testimonialForm.content.trim()) {
+      toast.error("Nom et avis obligatoires");
+      return;
+    }
+
+    setSavingTestimonial(true);
+
+    try {
+      const res = await fetch("/api/testimonials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: testimonialForm.name,
+          content: testimonialForm.content,
+          rating: Number(testimonialForm.rating),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create testimonial");
+      }
+
+      setTestimonialForm({ name: "", content: "", rating: "5" });
+      toast.success("Avis client ajouté");
+      fetchTestimonials();
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors de l'ajout de l'avis");
+    } finally {
+      setSavingTestimonial(false);
+    }
+  };
+
+  const handleDeleteTestimonial = async (id: string) => {
+    if (!confirm("Supprimer cet avis ?")) return;
+
+    try {
+      const res = await fetch(`/api/testimonials?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete testimonial");
+      }
+
+      toast.success("Avis supprimé");
+      fetchTestimonials();
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors de la suppression de l'avis");
     }
   };
 
@@ -448,8 +580,10 @@ export default function AdminDashboard() {
       setSettings({
         announcementText: typeof data.announcementText === "string" ? data.announcementText : "",
         announcementEnabled: data.announcementEnabled !== false,
+        logoUrl: typeof data.logoUrl === "string" ? data.logoUrl : "",
+        heroImageUrl: typeof data.heroImageUrl === "string" ? data.heroImageUrl : "",
       });
-      toast.success("Annonce mise à jour");
+      toast.success("Paramètres mis à jour");
     } catch (error: any) {
       toast.error(error?.message || "Erreur lors de la mise à jour de l'annonce");
     } finally {
@@ -511,20 +645,23 @@ export default function AdminDashboard() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-sage-800">Tableau de bord</h2>
-            <p className="text-sage-500 text-sm">Gérez vos produits et commandes</p>
+            <p className="text-sage-500 text-sm">Gérez vos produits, commandes et contenus</p>
           </div>
-          <Button onClick={openNewForm} className="bg-sage-500 hover:bg-sage-600 text-white rounded-xl">
-            <Plus className="w-4 h-4 mr-2" />
-            Nouveau produit
-          </Button>
+          {activeTab === "products" && (
+            <Button onClick={openNewForm} className="bg-sage-500 hover:bg-sage-600 text-white rounded-xl">
+              <Plus className="w-4 h-4 mr-2" />
+              Nouveau produit
+            </Button>
+          )}
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
           {[
             { label: "Produits", value: Array.isArray(products) ? products.length : 0, icon: Package, color: "text-sage-600" },
             { label: "Vedettes", value: Array.isArray(products) ? products.filter((p) => p.featured).length : 0, icon: Star, color: "text-gold" },
             { label: "Promos", value: Array.isArray(products) ? products.filter((p) => p.isPromo).length : 0, icon: BadgePercent, color: "text-red-600" },
+            { label: "Avis", value: Array.isArray(testimonials) ? testimonials.length : 0, icon: MessageSquareQuote, color: "text-blue-600" },
             { label: "Commandes", value: Array.isArray(orders) ? orders.length : 0, icon: Package, color: "text-sage-600" },
             { label: "En attente", value: Array.isArray(orders) ? orders.filter((o) => o.status === "pending").length : 0, icon: Package, color: "text-amber-600" },
             { label: "WhatsApp", value: Array.isArray(orders) ? orders.filter((o) => o.status === "whatsapp_pending").length : 0, icon: Package, color: "text-green-600" },
@@ -565,6 +702,14 @@ export default function AdminDashboard() {
           >
             <TrendingUp className="w-4 h-4 mr-1" />
             Analytics
+          </Button>
+          <Button
+            variant={activeTab === "testimonials" ? "default" : "ghost"}
+            onClick={() => { setActiveTab("testimonials"); fetchTestimonials(); }}
+            className={`rounded-full ${activeTab === "testimonials" ? "bg-sage-500 text-white hover:bg-sage-600 hover:text-white" : "text-sage-600 hover:bg-sage-50"}`}
+          >
+            <MessageSquareQuote className="w-4 h-4 mr-1" />
+            Avis
           </Button>
           <Button
             variant={activeTab === "settings" ? "default" : "ghost"}
@@ -946,6 +1091,136 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Testimonials Section */}
+      {activeTab === "testimonials" && (
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-sage-100/60 p-6">
+            <h3 className="text-lg font-semibold text-sage-800 mb-5 flex items-center gap-2">
+              <MessageSquareQuote className="w-5 h-5 text-sage-600" />
+              Nouvel avis client
+            </h3>
+
+            <form onSubmit={handleCreateTestimonial} className="space-y-4">
+              <div>
+                <Label className="text-sage-700 font-medium">Nom du client *</Label>
+                <Input
+                  value={testimonialForm.name}
+                  onChange={(e) => setTestimonialForm({ ...testimonialForm, name: e.target.value })}
+                  placeholder="Awa Diop"
+                  className="mt-1.5 border-sage-200 focus:border-sage-400"
+                />
+              </div>
+
+              <div>
+                <Label className="text-sage-700 font-medium">Note</Label>
+                <Select
+                  value={testimonialForm.rating}
+                  onValueChange={(value) => setTestimonialForm({ ...testimonialForm, rating: value })}
+                >
+                  <SelectTrigger className="mt-1.5 border-sage-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["5", "4", "3", "2", "1"].map((rating) => (
+                      <SelectItem key={rating} value={rating}>
+                        {rating}/5
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-sage-700 font-medium">Avis *</Label>
+                <textarea
+                  value={testimonialForm.content}
+                  onChange={(e) => setTestimonialForm({ ...testimonialForm, content: e.target.value })}
+                  placeholder="Les produits ont vraiment changé ma routine..."
+                  rows={5}
+                  maxLength={500}
+                  className="mt-1.5 w-full rounded-lg border border-sage-200 px-3 py-2 text-sm focus:border-sage-400 focus:ring-sage-400/20 focus:outline-none resize-none"
+                />
+                <p className="mt-1 text-xs text-sage-500">
+                  {testimonialForm.content.length}/500 caractères
+                </p>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={savingTestimonial}
+                className="w-full bg-sage-500 hover:bg-sage-600 text-white rounded-xl"
+              >
+                {savingTestimonial ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Ajouter l'avis
+              </Button>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-sage-100/60 p-6">
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <h3 className="text-lg font-semibold text-sage-800">Avis publiés</h3>
+              <Badge variant="outline" className="border-sage-200 text-sage-600">
+                {testimonials.length} avis
+              </Badge>
+            </div>
+
+            {testimonials.length === 0 ? (
+              <div className="rounded-xl bg-sage-50 p-8 text-center text-sm text-sage-500">
+                Aucun avis client pour le moment.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {testimonials.map((testimonial) => {
+                  const rating = Math.min(Math.max(testimonial.rating, 0), 5);
+
+                  return (
+                    <div key={testimonial.id} className="rounded-xl border border-sage-100 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold text-sage-800">{testimonial.name}</p>
+                            <div className="flex items-center gap-0.5">
+                              {Array.from({ length: 5 }).map((_, index) => (
+                                <Star
+                                  key={index}
+                                  className={`w-3.5 h-3.5 ${
+                                    index < rating ? "text-gold fill-gold" : "text-sage-200"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-xs text-sage-400 mb-2">
+                            {new Date(testimonial.createdAt).toLocaleDateString("fr-FR")}
+                          </p>
+                          <p className="text-sm leading-6 text-sage-600">
+                            &ldquo;{testimonial.content}&rdquo;
+                          </p>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteTestimonial(testimonial.id)}
+                          className="text-red-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Settings Section */}
       {activeTab === "settings" && (
         <div className="max-w-2xl space-y-6">
@@ -992,6 +1267,82 @@ export default function AdminDashboard() {
                 />
               </div>
 
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-sage-100 p-4">
+                  <Label className="text-sage-700 font-medium">Logo du site</Label>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="h-16 w-16 rounded-xl border border-sage-100 bg-sage-50 flex items-center justify-center overflow-hidden">
+                      {settings.logoUrl ? (
+                        <img src={settings.logoUrl} alt="Logo actuel" className="h-full w-full object-contain p-2" />
+                      ) : (
+                        <ImageIcon className="h-5 w-5 text-sage-300" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={settingsUploading === "logoUrl"}
+                        onChange={(e) => handleSettingsImageUpload("logoUrl", e)}
+                        className="border-sage-200 focus:border-sage-400"
+                      />
+                      {settingsUploading === "logoUrl" && (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-sage-500">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Upload en cours
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {settings.logoUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSettings({ ...settings, logoUrl: "" })}
+                      className="mt-3 h-8 text-xs text-sage-500 hover:text-sage-700 hover:bg-sage-50"
+                    >
+                      Utiliser le logo par défaut
+                    </Button>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-sage-100 p-4">
+                  <Label className="text-sage-700 font-medium">Image d'accueil</Label>
+                  <div className="mt-3 aspect-video rounded-xl border border-sage-100 bg-sage-50 flex items-center justify-center overflow-hidden">
+                    {settings.heroImageUrl ? (
+                      <img src={settings.heroImageUrl} alt="Image d'accueil actuelle" className="h-full w-full object-cover" />
+                    ) : (
+                      <ImageIcon className="h-6 w-6 text-sage-300" />
+                    )}
+                  </div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    disabled={settingsUploading === "heroImageUrl"}
+                    onChange={(e) => handleSettingsImageUpload("heroImageUrl", e)}
+                    className="mt-3 border-sage-200 focus:border-sage-400"
+                  />
+                  {settingsUploading === "heroImageUrl" && (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-sage-500">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Upload en cours
+                    </p>
+                  )}
+                  {settings.heroImageUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSettings({ ...settings, heroImageUrl: "" })}
+                      className="mt-3 h-8 text-xs text-sage-500 hover:text-sage-700 hover:bg-sage-50"
+                    >
+                      Utiliser l'image par défaut
+                    </Button>
+                  )}
+                </div>
+              </div>
+
               <Button
                 type="submit"
                 disabled={savingSettings}
@@ -1002,7 +1353,7 @@ export default function AdminDashboard() {
                 ) : (
                   <Save className="w-4 h-4 mr-2" />
                 )}
-                Enregistrer l'annonce
+                Enregistrer les paramètres
               </Button>
             </form>
           </div>

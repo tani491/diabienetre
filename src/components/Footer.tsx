@@ -1,7 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { ArrowRight, Phone, Mail, MapPin, Heart, Facebook, Instagram, Twitter } from 'lucide-react';
+import { ArrowRight, Phone, Mail, MapPin, Instagram, Music2 } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -24,14 +23,33 @@ export default function Footer() {
             </p>
             {/* Social Links */}
             <div className="flex items-center gap-3 mt-6">
-              <a href="#" className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors">
-                <Facebook className="w-4 h-4" />
+              <a
+                href="https://www.instagram.com/diabienetre/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram DiaBienEtre"
+                className="relative w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
+              >
+                <svg aria-hidden="true" width="0" height="0" className="absolute">
+                  <defs>
+                    <linearGradient id="instagram-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#F58529" />
+                      <stop offset="35%" stopColor="#DD2A7B" />
+                      <stop offset="70%" stopColor="#8134AF" />
+                      <stop offset="100%" stopColor="#515BD4" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <Instagram className="w-4 h-4" color="url(#instagram-gradient)" />
               </a>
-              <a href="#" className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors">
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a href="#" className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors">
-                <Twitter className="w-4 h-4" />
+              <a
+                href="https://www.tiktok.com/@gakou47"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="TikTok DiaBienEtre @gakou47"
+                className="w-9 h-9 bg-white rounded-lg flex items-center justify-center hover:bg-white/90 transition-colors"
+              >
+                <Music2 className="w-4 h-4 text-black" />
               </a>
             </div>
           </div>
@@ -131,13 +149,9 @@ export default function Footer() {
       {/* Bottom Bar */}
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center justify-center">
             <p className="text-white/40 text-sm">
               © 2026 DiaBienEtre - Tous droits réservés
-            </p>
-            <p className="text-white/40 text-sm flex items-center gap-1">
-              Fait avec <Heart className="w-3 h-3 text-red-400 fill-red-400" /> au Sénégal
-              <a href="/admin" className="text-white/40 hover:text-white text-xs ml-1">●</a>
             </p>
           </div>
         </div>
