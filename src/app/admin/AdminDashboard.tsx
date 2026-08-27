@@ -60,6 +60,7 @@ interface Product {
   description: string;
   price: number;
   image: string;
+  gallery: string[];
   category: string;
   stock: number;
   featured: boolean;
@@ -125,6 +126,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"products" | "orders" | "analytics" | "testimonials" | "settings">("products");
   const [uploading, setUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [settings, setSettings] = useState<StoreSettings>({
     announcementText: "",
@@ -162,6 +164,7 @@ export default function AdminDashboard() {
     description: "",
     price: "",
     image: "",
+    gallery: [] as string[],
     category: "cheveux",
     stock: "50",
     featured: false,
@@ -293,7 +296,17 @@ export default function AdminDashboard() {
 
   const openNewForm = () => {
     setEditingProduct(null);
-    setForm({ name: "", description: "", price: "", image: "", category: "cheveux", stock: "50", featured: false, isPromo: false });
+    setForm({
+      name: "",
+      description: "",
+      price: "",
+      image: "",
+      gallery: [],
+      category: "cheveux",
+      stock: "50",
+      featured: false,
+      isPromo: false,
+    });
     setImagePreview("");
     setFormOpen(true);
   };
@@ -305,6 +318,7 @@ export default function AdminDashboard() {
       description: product.description,
       price: product.price.toString(),
       image: product.image,
+      gallery: Array.isArray(product.gallery) ? product.gallery.slice(0, 4) : [],
       category: product.category,
       stock: product.stock.toString(),
       featured: product.featured,
@@ -350,6 +364,65 @@ export default function AdminDashboard() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files ?? []);
+    const availableSlots = 4 - form.gallery.length;
+    const files = selectedFiles.slice(0, Math.max(availableSlots, 0));
+
+    if (availableSlots <= 0) {
+      toast.error("La galerie contient déjà 4 images maximum");
+      e.target.value = "";
+      return;
+    }
+
+    if (selectedFiles.length > availableSlots) {
+      toast.warning(`Seules ${availableSlots} image(s) supplémentaire(s) ont été prises en compte`);
+    }
+
+    if (files.length === 0) return;
+
+    setGalleryUploading(true);
+
+    try {
+      const uploadedUrls: string[] = [];
+
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data.error || "Upload failed");
+        }
+
+        uploadedUrls.push(data.url);
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        gallery: [...prev.gallery, ...uploadedUrls].slice(0, 4),
+      }));
+      toast.success(`${uploadedUrls.length} image(s) ajoutée(s) à la galerie`);
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors du téléchargement de la galerie");
+    } finally {
+      setGalleryUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const removeGalleryImage = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      gallery: prev.gallery.filter((_, imageIndex) => imageIndex !== index),
+    }));
   };
 
   const handleSettingsImageUpload = async (
@@ -888,6 +961,43 @@ export default function AdminDashboard() {
                 )}
               </div>
               <p className="text-xs text-sage-500 mt-1">Format : JPG, PNG (max 5MB)</p>
+            </div>
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <Label className="text-sage-700">Galerie produit</Label>
+                <span className="text-xs text-sage-400">{form.gallery.length}/4 images</span>
+              </div>
+              {form.gallery.length > 0 && (
+                <div className="mt-2 mb-3 grid grid-cols-4 gap-2">
+                  {form.gallery.map((image, index) => (
+                    <div key={`${image}-${index}`} className="relative aspect-square overflow-hidden rounded-lg border border-sage-200 bg-sage-50">
+                      <img src={image} alt={`Galerie ${index + 1}`} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeGalleryImage(index)}
+                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-red-500 shadow-sm hover:bg-red-50"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleGalleryUpload}
+                disabled={galleryUploading || form.gallery.length >= 4}
+                className="mt-1 border-sage-200 focus:border-sage-400"
+              />
+              {galleryUploading && (
+                <p className="mt-1 flex items-center gap-1 text-xs text-sage-500">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Upload de la galerie en cours
+                </p>
+              )}
+              <p className="text-xs text-sage-500 mt-1">Ajoutez jusqu'à 4 images supplémentaires.</p>
             </div>
             <div>
               <Label className="text-sage-700">Catégorie</Label>

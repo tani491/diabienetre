@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowLeft, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ProductCard from '@/components/ProductCard';
@@ -10,6 +11,7 @@ import { useAppStore } from '@/lib/store';
 import { fetchPublicProducts, type Product } from '@/lib/products';
 
 export default function Catalog() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const selectedCategory = useAppStore((s) => s.selectedCategory);
@@ -64,6 +66,15 @@ export default function Catalog() {
           transition={{ duration: 0.5 }}
           className="mb-10"
         >
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => router.back()}
+            className="mb-5 -ml-3 rounded-full text-sage-600 hover:bg-sage-50 hover:text-sage-800"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Retour
+          </Button>
           <h1 className="text-3xl sm:text-4xl font-bold text-sage-800 mb-2">
             Notre Catalogue
           </h1>

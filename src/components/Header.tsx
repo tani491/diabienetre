@@ -22,7 +22,9 @@ export default function Header({ onNavigate, logoUrl }: HeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const currentPage = useAppStore((s) => s.currentPage);
-  const cartCount = useAppStore((s) => s.cartCount);
+  const cartCount = useAppStore((s) =>
+    s.cart.reduce((count, item) => count + item.quantity, 0)
+  );
   const hasHydrated = useAppStore((s) => s._hasHydrated);
   const logoSrc = logoUrl?.trim() || "/logo.png";
 
@@ -101,9 +103,9 @@ export default function Header({ onNavigate, logoUrl }: HeaderProps) {
               className="relative text-white hover:bg-white/15 hover:text-white"
             >
               <ShoppingBag className="w-5 h-5" />
-              {hasHydrated && cartCount() > 0 && (
+              {hasHydrated && cartCount > 0 && (
                 <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-gold text-white text-xs font-bold border-2 border-sage-400">
-                  {cartCount()}
+                  {cartCount}
                 </Badge>
               )}
               <span className="sr-only">Panier</span>
@@ -161,8 +163,8 @@ export default function Header({ onNavigate, logoUrl }: HeaderProps) {
                   >
                     <ShoppingBag className="w-4 h-4" />
                     Panier
-                    {hasHydrated && cartCount() > 0 && (
-                      <Badge className="ml-auto bg-gold text-white">{cartCount()}</Badge>
+                    {hasHydrated && cartCount > 0 && (
+                      <Badge className="ml-auto bg-gold text-white">{cartCount}</Badge>
                     )}
                   </button>
                 </div>

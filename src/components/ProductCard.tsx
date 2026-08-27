@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BadgePercent, ShoppingBag, Star, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +16,7 @@ interface Product {
   description: string;
   price: number;
   image: string;
+  gallery?: string[];
   category: string;
   stock: number;
   featured: boolean;
@@ -41,6 +44,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     toast.success(`${product.name} ajouté au panier`, {
       description: `${product.price.toLocaleString('fr-FR')} CFA`,
       icon: <ShoppingBag className="w-4 h-4" />,
+      duration: 2000,
     });
     setTimeout(() => setAdded(false), 1500);
   };
@@ -48,20 +52,28 @@ export default function ProductCard({ product }: ProductCardProps) {
   const outOfStock = product.stock <= 0;
 
   return (
-    <motion.div
+    <motion.article
       layout
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
-      className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-sage-100/60"
+      className="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-sage-100/60"
     >
+      <Link
+        href={`/product/${product.id}`}
+        aria-label={`Voir le produit ${product.name}`}
+        className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2"
+      />
+
       {/* Image Container */}
       <div className="relative aspect-square overflow-hidden bg-sage-50">
-        <img
+        <Image
           src={product.image}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          className="object-cover group-hover:scale-110 transition-transform duration-500"
         />
 
         {/* Featured Badge */}
@@ -115,7 +127,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             onClick={handleAddToCart}
             disabled={outOfStock}
             size="sm"
-            className={`rounded-full transition-all duration-300 ${
+            className={`relative z-20 rounded-full transition-all duration-300 ${
               added
                 ? 'bg-green-500 hover:bg-green-500 text-white'
                 : 'bg-sage-400 hover:bg-sage-500 text-white'
@@ -148,6 +160,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           </Button>
         </div>
       </div>
-    </motion.div>
+    </motion.article>
   );
 }

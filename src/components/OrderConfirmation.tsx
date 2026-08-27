@@ -1,19 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CheckCircle, ArrowRight, MessageCircle, Wallet } from 'lucide-react';
+import { CheckCircle, ArrowRight, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAppStore, type Page } from '@/lib/store';
+import type { Page } from '@/lib/store';
 
 interface OrderConfirmationProps {
   onNavigate: (page: Page) => void;
 }
 
 export default function OrderConfirmation({ onNavigate }: OrderConfirmationProps) {
-  const lastPaymentMethod = useAppStore((s) => s.lastPaymentMethod);
-  const isWhatsApp = lastPaymentMethod === 'whatsapp';
-  const isWave = lastPaymentMethod === 'wave';
-
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-lg mx-auto text-center">
@@ -39,15 +35,13 @@ export default function OrderConfirmation({ onNavigate }: OrderConfirmationProps
           transition={{ delay: 0.4 }}
         >
           <h1 className="text-3xl sm:text-4xl font-bold text-sage-800 mb-4">
-            {isWhatsApp ? 'Commande envoyée !' : 'Commande confirmée !'}
+            Commande envoyée !
           </h1>
           <p className="text-sage-500 mb-2 text-lg">
             Merci pour votre commande
           </p>
           <p className="text-sage-400 text-sm mb-10 max-w-md mx-auto">
-            {isWhatsApp
-              ? 'Votre commande a été envoyée sur WhatsApp. Notre équipe vous répondra rapidement pour confirmer la disponibilité et organiser la livraison.'
-              : 'Votre commande a été enregistrée avec succès. Nous traiterons votre paiement et vous contacterons bientôt pour la livraison.'}
+            Votre commande a été envoyée sur WhatsApp. Notre équipe vous répondra rapidement pour confirmer la disponibilité et organiser la livraison.
           </p>
         </motion.div>
 
@@ -60,37 +54,22 @@ export default function OrderConfirmation({ onNavigate }: OrderConfirmationProps
           <div className="space-y-3 text-left">
             <div className="flex justify-between text-sm">
               <span className="text-sage-500">Statut</span>
-              <span className={`font-medium px-2 py-0.5 rounded-full text-xs ${
-                isWhatsApp
-                  ? 'text-green-600 bg-green-50'
-                  : 'text-amber-600 bg-amber-50'
-              }`}>
-                {isWhatsApp ? 'Envoyée via WhatsApp' : 'En attente de vérification'}
+              <span className="font-medium px-2 py-0.5 rounded-full text-xs text-green-600 bg-green-50">
+                Envoyée via WhatsApp
               </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-sage-500">Mode de paiement</span>
               <span className="text-sage-700 font-medium flex items-center gap-1.5">
-                {isWhatsApp ? (
-                  <>
-                    <MessageCircle className="w-4 h-4 text-green-500" />
-                    WhatsApp
-                  </>
-                ) : (
-                  <>
-                    <Wallet className="w-4 h-4 text-blue-500" />
-                    Wave
-                  </>
-                )}
+                <MessageCircle className="w-4 h-4 text-green-500" />
+                WhatsApp
               </span>
             </div>
-            {isWhatsApp && (
-              <div className="mt-3 p-3 bg-green-50 rounded-xl">
-                <p className="text-xs text-green-700">
-                  💡 Vous pouvez régler en espèces ou par Wave au moment de la livraison. Notre équipe vous contactera pour confirmer les détails.
-                </p>
-              </div>
-            )}
+            <div className="mt-3 p-3 bg-green-50 rounded-xl">
+              <p className="text-xs text-green-700">
+                Les frais de livraison seront calculés et réglés lors de la confirmation de votre commande sur WhatsApp.
+              </p>
+            </div>
           </div>
         </motion.div>
 

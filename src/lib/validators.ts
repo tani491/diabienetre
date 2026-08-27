@@ -34,6 +34,17 @@ const optionalUrlSchema = z.preprocess(
   urlSchema.nullable().optional()
 );
 
+const gallerySchema = z.preprocess(
+  (value) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.filter((item) => typeof item === "string" && item.trim().length > 0);
+  },
+  z.array(urlSchema).max(4, "La galerie ne peut pas contenir plus de 4 images").default([])
+);
+
 // Schéma de mot de passe complexe (OWASP A02 - Broken Authentication)
 const passwordSchema = z.string().min(12, "Au moins 12 caractères").regex(
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
@@ -72,6 +83,7 @@ export const productCreateSchema = z.object({
   description: z.string().transform(stripHtml).pipe(z.string().max(1000)).optional().default(""),
   price: z.preprocess((value) => Number(value), z.number().positive()),
   image: urlSchema,
+  gallery: gallerySchema,
   category: z.string().transform(stripHtml).pipe(z.string().min(1).max(100)),
   stock: z.preprocess((value) => Number(value), z.number().int().nonnegative()).optional().default(0),
   featured: booleanFromString.optional().default(false),
@@ -84,6 +96,7 @@ export const productUpdateSchema = z.object({
   description: z.string().transform(stripHtml).pipe(z.string().max(1000)).optional(),
   price: z.preprocess((value) => Number(value), z.number().positive()).optional(),
   image: urlSchema.optional(),
+  gallery: gallerySchema.optional(),
   category: z.string().transform(stripHtml).pipe(z.string().min(1).max(100)).optional(),
   stock: z.preprocess((value) => Number(value), z.number().int().nonnegative()).optional(),
   featured: booleanFromString.optional(),

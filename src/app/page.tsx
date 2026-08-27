@@ -9,6 +9,7 @@ import Hero from "@/components/Hero";
 import Categories from "@/components/Categories";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import TestimonialsSection from "@/components/TestimonialsSection";
+import FAQSection from "@/components/FAQSection";
 import Catalog from "@/components/Catalog";
 import Cart from "@/components/Cart";
 import Checkout from "@/components/Checkout";
@@ -98,6 +99,7 @@ function AppContent() {
             <Categories onNavigate={handleNavigate} />
             <FeaturedProducts onNavigate={handleNavigate} />
             <TestimonialsSection />
+            <FAQSection />
           </motion.div>
         );
       case "catalog":

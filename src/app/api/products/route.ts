@@ -62,6 +62,7 @@ export async function POST(request: Request) {
         description: parsed.data.description,
         price: parsed.data.price,
         image: parsed.data.image,
+        gallery: parsed.data.gallery,
         category: parsed.data.category,
         stock: parsed.data.stock,
         featured: parsed.data.featured,
