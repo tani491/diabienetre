@@ -34,7 +34,7 @@ export default function Header({ onNavigate }: HeaderProps) {
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
+      className={`sticky top-[var(--announcement-bar-height,0px)] z-[60] transition-all duration-300 ${
         scrolled
           ? 'bg-sage-400/95 backdrop-blur-md shadow-lg'
           : 'bg-sage-400 shadow-sm'

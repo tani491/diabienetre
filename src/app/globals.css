@@ -57,6 +57,7 @@
 
 :root {
   --radius: 0.75rem;
+  --announcement-bar-height: 0px;
 
   /* Sage Green Primary Palette */
   --sage-50: oklch(0.97 0.012 145);
