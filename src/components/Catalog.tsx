@@ -16,6 +16,7 @@ export default function Catalog() {
   const [searchQuery, setSearchQuery] = useState('');
   const selectedCategory = useAppStore((s) => s.selectedCategory);
   const setSelectedCategory = useAppStore((s) => s.setSelectedCategory);
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
   const [activeFilter, setActiveFilter] = useState(selectedCategory);
 
   useEffect(() => {
@@ -56,6 +57,17 @@ export default function Catalog() {
     { id: 'peau', label: 'Peau' },
   ];
 
+  const handleBack = () => {
+    if (window.location.pathname === '/') {
+      setSelectedCategory('all');
+      setCurrentPage('home');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    router.back();
+  };
+
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -68,7 +80,7 @@ export default function Catalog() {
         >
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="mb-5 flex items-center gap-2 cursor-pointer text-gray-600 hover:text-black z-10 relative p-2 -ml-2"
           >
             <ArrowLeft className="w-4 h-4" />
